@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<title>TinNguongGIS · Mobile UI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: "Inter", system-ui, sans-serif;
+    background: #f0eee9;
+    color: #1e2d3d;
+  }
+  #root { min-height: 100vh; }
+
+  /* Notes/captions inside the canvas */
+  .nt {
+    max-width: 720px;
+    font-family: "Inter", system-ui, sans-serif;
+    color: rgba(40,30,20,0.85);
+  }
+  .nt h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+  .nt .sub { margin-top: 4px; font-size: 13px; color: rgba(60,50,40,0.7); font-weight: 500; }
+  .nt p { margin: 6px 0 0; font-size: 13px; line-height: 1.5; color: rgba(60,50,40,0.78); }
+  .key {
+    display: inline-block;
+    background: rgba(40,30,20,0.06);
+    padding: 1px 7px;
+    border-radius: 6px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .swatch-row {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px;
+  }
+  .sw {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px 4px 4px; border-radius: 999px;
+    background: rgba(255,255,255,0.7);
+    font-size: 11px; font-weight: 600;
+    border: 1px solid rgba(0,0,0,0.05);
+  }
+  .sw .chip {
+    width: 18px; height: 18px; border-radius: 999px;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05);
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="screens-home.jsx"></script>
+<script type="text/babel" src="screens-map.jsx"></script>
+<script type="text/babel" src="screens-facilities.jsx"></script>
+<script type="text/babel" src="screens-events.jsx"></script>
+<script type="text/babel" src="screens-misc.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const W = 402, H = 874;
+
+// Wrap a screen inside the iOS frame
+const Frame = ({ children, dark = false }) => (
+  <IOSDevice width={W} height={H} dark={dark}>
+    {children}
+  </IOSDevice>
+);
+
+function IntroNote() {
+  return (
+    <div className="nt" style={{ padding: '8px 0 16px' }}>
+      <h2>TinNguongGIS — Mobile UI</h2>
+      <div className="sub">Phường 5 · Quận Bình Thạnh — ứng dụng hiển thị + thông báo (read-only)</div>
+      <p>
+        Hệ thống thiết kế: tối giản, photography-first. Một màu nhấn duy nhất
+        (<span className="key">#3B6FA0</span>) dành cho action signal. Gold
+        (<span className="key">#C9A84C</span>) chỉ dùng cho điểm nhấn rất nhỏ. Nền parchment
+        (<span className="key">#F4F2EC</span>) cho mọi trang sáng; dark tile
+        (<span className="key">#1E2D3D</span>) cho hero và nav editorial. Typography Inter — 17px body,
+        weight 600/700 cho heading, tracking âm trên kích thước lớn.
+      </p>
+      <div className="swatch-row">
+        <span className="sw"><span className="chip" style={{ background: '#3B6FA0' }}></span> Primary</span>
+        <span className="sw"><span className="chip" style={{ background: '#C9A84C' }}></span> Gold</span>
+        <span className="sw"><span className="chip" style={{ background: '#F4F2EC' }}></span> Parchment</span>
+        <span className="sw"><span className="chip" style={{ background: '#1E2D3D' }}></span> Ink / Tile dark</span>
+        <span className="sw"><span className="chip" style={{ background: '#E8E4D8' }}></span> Hairline</span>
+      </div>
+    </div>
+  );
+}
+
+const screens = [
+  {
+    id: 'home', label: '01 · Trang chủ',
+    sub: 'Hero tối + KPI · cảnh báo · sắp diễn ra · tin mới',
+    render: () => <Frame><ScreenHome /></Frame>,
+  },
+  {
+    id: 'map', label: '02 · Bản đồ GIS',
+    sub: 'Map full-bleed · search nổi · toolbar phải · bottom-sheet danh sách',
+    render: () => <Frame><ScreenMap /></Frame>,
+  },
+  {
+    id: 'map-popup', label: '03 · Bản đồ · popup cơ sở',
+    sub: 'Bottom sheet mở rộng · banner carousel · spec grid · chỉ đường',
+    render: () => <Frame><ScreenMapPopup /></Frame>,
+  },
+  {
+    id: 'facility-list', label: '04 · Cơ sở · danh sách',
+    sub: 'Filter chips loại hình · card có banner · status badge · 4 KPI nhỏ',
+    render: () => <Frame><ScreenFacilityList /></Frame>,
+  },
+  {
+    id: 'facility-detail', label: '05 · Cơ sở · chi tiết',
+    sub: 'Hero ảnh · info table · chức sắc · album · hồ sơ · lịch sử sửa chữa',
+    render: () => <Frame><ScreenFacilityDetail /></Frame>,
+  },
+  {
+    id: 'clergy-detail', label: '06 · Chức sắc · chi tiết',
+    sub: 'Hero dark · avatar lớn · info table · ghi chú · gọi điện / email',
+    render: () => <Frame><ScreenClergyDetail /></Frame>,
+  },
+  {
+    id: 'event-list', label: '07 · Sự kiện · danh sách',
+    sub: 'Toggle list/calendar · alert chưa có phép · KPI strip · event card',
+    render: () => <Frame><ScreenEventList /></Frame>,
+  },
+  {
+    id: 'event-cal', label: '08 · Sự kiện · lịch năm',
+    sub: 'Grid 12 tháng · dot xanh/vàng · chi tiết tháng đang chọn',
+    render: () => <Frame><ScreenEventCalendar /></Frame>,
+  },
+  {
+    id: 'event-detail', label: '09 · Sự kiện · chi tiết',
+    sub: 'Hero overlay · quick facts · chương trình timeline · đơn vị tổ chức',
+    render: () => <Frame><ScreenEventDetail /></Frame>,
+  },
+  {
+    id: 'news-list', label: '10 · Tin tức',
+    sub: 'Featured card · filter chips · danh sách bài viết',
+    render: () => <Frame><ScreenNewsList /></Frame>,
+  },
+  {
+    id: 'news-detail', label: '11 · Tin tức · chi tiết',
+    sub: 'Bài đọc dài · sticky nav · pull-quote · liên quan',
+    render: () => <Frame><ScreenNewsDetail /></Frame>,
+  },
+  {
+    id: 'notif', label: '12 · Thông báo',
+    sub: 'Tab filter · group hôm nay / hôm qua / tuần này · icon kind',
+    render: () => <Frame><ScreenNotifications /></Frame>,
+  },
+  {
+    id: 'album', label: '13 · Album ảnh',
+    sub: 'Header sticky · featured · grid 3 cột · album khác cùng cơ sở',
+    render: () => <Frame><ScreenAlbum /></Frame>,
+  },
+  {
+    id: 'stats', label: '14 · Thống kê',
+    sub: 'Hero KPI + breakdown bars · grid 2x2 · donut · area chart · activity',
+    render: () => <Frame><ScreenStats /></Frame>,
+  },
+];
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="intro" title="TinNguongGIS · Mobile" subtitle="Phường 5 · Quận Bình Thạnh — hiển thị + thông báo">
+        <div data-screen-label="00 Intro">
+          <IntroNote />
+        </div>
+      </DCSection>
+
+      <DCSection id="core" title="Trang chính" subtitle="Trang chủ, bản đồ và popup cơ sở">
+        {screens.slice(0,3).map(s => (
+          <DCArtboard key={s.id} id={s.id} label={s.label} subtitle={s.sub} width={W} height={H}>
+            <div data-screen-label={s.label}>{s.render()}</div>
+          </DCArtboard>
+        ))}
+      </DCSection>
+
+      <DCSection id="facilities" title="Cơ sở tôn giáo & chức sắc" subtitle="Danh sách, chi tiết, hồ sơ chức sắc">
+        {screens.slice(3,6).map(s => (
+          <DCArtboard key={s.id} id={s.id} label={s.label} subtitle={s.sub} width={W} height={H}>
+            <div data-screen-label={s.label}>{s.render()}</div>
+          </DCArtboard>
+        ))}
+      </DCSection>
+
+      <DCSection id="events" title="Lễ hội & hoạt động" subtitle="Danh sách, lịch năm, chi tiết sự kiện">
+        {screens.slice(6,9).map(s => (
+          <DCArtboard key={s.id} id={s.id} label={s.label} subtitle={s.sub} width={W} height={H}>
+            <div data-screen-label={s.label}>{s.render()}</div>
+          </DCArtboard>
+        ))}
+      </DCSection>
+
+      <DCSection id="comms" title="Tin tức & thông báo" subtitle="Đọc tin, thông báo nội bộ">
+        {screens.slice(9,12).map(s => (
+          <DCArtboard key={s.id} id={s.id} label={s.label} subtitle={s.sub} width={W} height={H}>
+            <div data-screen-label={s.label}>{s.render()}</div>
+          </DCArtboard>
+        ))}
+      </DCSection>
+
+      <DCSection id="media" title="Thư viện & Thống kê" subtitle="Album ảnh và dashboard số liệu">
+        {screens.slice(12,14).map(s => (
+          <DCArtboard key={s.id} id={s.id} label={s.label} subtitle={s.sub} width={W} height={H}>
+            <div data-screen-label={s.label}>{s.render()}</div>
+          </DCArtboard>
+        ))}
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

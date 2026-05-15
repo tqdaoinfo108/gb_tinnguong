@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import sys; print\\(sys.stdin.read\\(\\)\\)\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\qdaoc\\\\Documents\\\\Git\\\\gb_tinnguong\\\\lib\\\\modules\\\\news\\\\views\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\qdaoc\\\\Documents\\\\Git\\\\gb_tinnguong\\\\lib\\\\modules\\\\notifications\\\\views\")",
+      "PowerShell(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\qdaoc\\\\Documents\\\\Git\\\\gb_tinnguong\\\\lib\\\\modules\\\\events\\\\views\")",
+      "Bash(flutter analyze *)",
+      "Bash(flutter build *)",
+      "Bash(dart analyze *)"
+    ]
+  }
+}
