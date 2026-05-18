@@ -31,7 +31,7 @@ class _EventsPageState extends State<EventsPage> {
     return Scaffold(
       backgroundColor: AppColors.parchment,
       body: Obx(() {
-        if (ctrl.isLoading.value && ctrl.events.isEmpty) {
+        if (ctrl.isLoading.value && ctrl.filteredEvents.isEmpty) {
           return const Center(
             child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
           );

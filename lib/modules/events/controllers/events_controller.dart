@@ -9,46 +9,68 @@ import '../../../data/services/event_service.dart';
 class EventsController extends GetxController {
   final _svc = EventService();
 
-  // ── List state ────────────────────────────────────────────────
+  // ── Raw fetched data ──────────────────────────────────────────
   final isLoading = false.obs;
-  final events = <EventModel>[].obs;
+  final _allEvents = <EventModel>[].obs; // full list from API
   final total = 0.obs;
   final page = 1.obs;
   final limit = 20;
   final hasMore = true.obs;
 
-  // ── Filters ───────────────────────────────────────────────────
-  final searchKey = ''.obs;
-  final selectedStatusID = (-100).obs;
-  final permitFilter = 0.obs; // 0=all 1=hasPermit 2=noPermit (client-side)
+  // ── Optional date-range filter (API-level) ────────────────────
+  final dtFrom = Rxn<DateTime>();
+  final dtTo   = Rxn<DateTime>();
 
-  // ── Computed (client-side from current page) ──────────────────
+  // ── Client-side filters (applied on _allEvents) ───────────────
+  final searchKey      = ''.obs;
+  final selectedStatusID = (-100).obs; // -100 = all
+  final permitFilter   = 0.obs;        // 0=all 1=hasPermit 2=noPermit
+
+  // ── Computed: filtered list ───────────────────────────────────
   List<EventModel> get filteredEvents {
-    final src = events;
-    if (permitFilter.value == 1) return src.where((e) => e.hasPermit == true).toList();
-    if (permitFilter.value == 2) return src.where((e) => e.hasPermit != true).toList();
+    var src = _allEvents.toList();
+
+    // Status
+    if (selectedStatusID.value != -100) {
+      src = src.where((e) => e.statusID == selectedStatusID.value).toList();
+    }
+
+    // Permit
+    if (permitFilter.value == 1) src = src.where((e) => e.hasPermit == true).toList();
+    if (permitFilter.value == 2) src = src.where((e) => e.hasPermit != true).toList();
+
+    // Search (name or office)
+    final q = searchKey.value.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      src = src.where((e) =>
+          e.eventName.toLowerCase().contains(q) ||
+          (e.officeName?.toLowerCase().contains(q) ?? false) ||
+          (e.typeEventName?.toLowerCase().contains(q) ?? false)).toList();
+    }
+
     return src;
   }
 
+  // ── Alert: upcoming + no permit ───────────────────────────────
   List<EventModel> get alertEvents =>
-      events.where((e) => e.statusID == 1 && e.hasPermit != true).toList();
+      _allEvents.where((e) => e.statusID == 1 && e.hasPermit != true).toList();
 
-  int get countUpcoming => events.where((e) => e.statusID == 1).length;
-  int get countPermit   => events.where((e) => e.hasPermit == true).length;
-  int get countNoPermit => events.where((e) => e.hasPermit != true).length;
+  // ── KPI (from raw list, not filtered) ────────────────────────
+  int get countUpcoming => _allEvents.where((e) => e.statusID == 1).length;
+  int get countPermit   => _allEvents.where((e) => e.hasPermit == true).length;
+  int get countNoPermit => _allEvents.where((e) => e.hasPermit != true).length;
 
   // ── Calendar: group by month ──────────────────────────────────
   Map<int, List<EventModel>> get byMonth {
     final map = <int, List<EventModel>>{};
-    for (final e in events) {
+    for (final e in _allEvents) {
       final m = e.dateStart?.month;
       if (m != null) map.putIfAbsent(m, () => []).add(e);
     }
     return map;
   }
 
-  // ── Selected calendar month ───────────────────────────────────
-  final selectedCalMonth = 0.obs; // 0 = auto (first month with events or current)
+  final selectedCalMonth = 0.obs;
 
   List<EventModel> get calMonthEvents {
     final m = selectedCalMonth.value > 0
@@ -57,17 +79,16 @@ class EventsController extends GetxController {
     return byMonth[m] ?? [];
   }
 
-  // ── Form / Edit state ─────────────────────────────────────────
+  // ── Form state ────────────────────────────────────────────────
   final formLoading = false.obs;
-  final typeEvents = <TypeEventModel>[].obs;
-  final villages = <VillageModel>[].obs;
-  final offices = <OfficeModel>[].obs;
+  final typeEvents  = <TypeEventModel>[].obs;
+  final villages    = <VillageModel>[].obs;
+  final offices     = <OfficeModel>[].obs;
 
-  // Form field controllers
-  final fcName     = TextEditingController();
-  final fcCode     = TextEditingController();
-  final fcPerson   = TextEditingController();
-  final fcDesc     = TextEditingController();
+  final fcName      = TextEditingController();
+  final fcCode      = TextEditingController();
+  final fcPerson    = TextEditingController();
+  final fcDesc      = TextEditingController();
   final fcDateStart = TextEditingController();
   final fcDateEnd   = TextEditingController();
 
@@ -76,16 +97,13 @@ class EventsController extends GetxController {
   final formOfficeID    = Rxn<int>();
   final formStatusID    = 1.obs;
   final formIsActivity  = true.obs;
+  final editingEvent    = Rxn<EventModel>();
 
-  // null = adding new; non-null = editing
-  final editingEvent = Rxn<EventModel>();
-
+  // ── Lifecycle ─────────────────────────────────────────────────
   @override
   void onInit() {
     super.onInit();
     fetchEvents();
-    debounce(searchKey, (_) => _resetAndFetch(), time: const Duration(milliseconds: 400));
-    ever(selectedStatusID, (_) => _resetAndFetch());
   }
 
   @override
@@ -99,27 +117,24 @@ class EventsController extends GetxController {
     super.onClose();
   }
 
-  // ── Fetch ─────────────────────────────────────────────────────
-  void _resetAndFetch() {
-    page.value = 1;
-    hasMore.value = true;
-    fetchEvents();
-  }
-
+  // ── Fetch (API-level pagination + optional date range) ────────
   Future<void> fetchEvents({bool append = false}) async {
-    if (!append) page.value = 1;
+    if (!append) {
+      page.value = 1;
+      hasMore.value = true;
+    }
     isLoading.value = true;
     try {
-      final result = await _svc.getList(
-        key: searchKey.value,
-        statusID: selectedStatusID.value,
-        page: page.value,
-        limit: limit,
+      final result = await _svc.getListActive(
+        dtFrom: dtFrom.value,
+        dtTo:   dtTo.value,
+        page:   page.value,
+        limit:  limit,
       );
       if (append) {
-        events.addAll(result.items);
+        _allEvents.addAll(result.items);
       } else {
-        events.value = result.items;
+        _allEvents.value = result.items;
       }
       total.value = result.total;
       hasMore.value = result.items.length >= limit;
@@ -139,13 +154,18 @@ class EventsController extends GetxController {
 
   Future<void> refreshList() => fetchEvents();
 
+  // ── Apply date-range filter (re-fetches from API) ─────────────
+  void applyDateRange(DateTime? from, DateTime? to) {
+    dtFrom.value = from;
+    dtTo.value   = to;
+    fetchEvents();
+  }
+
   // ── Form open ─────────────────────────────────────────────────
   Future<void> openForm({EventModel? event}) async {
     editingEvent.value = event;
     _fillForm(event);
     formLoading.value = true;
-
-    // Load dropdowns in parallel
     try {
       final results = await Future.wait([
         _svc.getTypeEvents(),
@@ -153,8 +173,8 @@ class EventsController extends GetxController {
         _svc.getOffices(),
       ]);
       typeEvents.value = results[0] as List<TypeEventModel>;
-      villages.value  = results[1] as List<VillageModel>;
-      offices.value   = results[2] as List<OfficeModel>;
+      villages.value   = results[1] as List<VillageModel>;
+      offices.value    = results[2] as List<OfficeModel>;
     } catch (e) {
       log('openForm dropdowns error: $e');
     } finally {
@@ -171,24 +191,23 @@ class EventsController extends GetxController {
     fcDateEnd.text    = _fmtDate(e?.dateEnd);
     formTypeEventID.value = e?.typeEventID;
     formOfficeID.value    = e?.officeID;
-    formVillageID.value   = null; // VillageName only, no ID in list response
+    formVillageID.value   = null;
     formStatusID.value    = e?.statusID ?? 1;
     formIsActivity.value  = e?.isActivity ?? true;
   }
 
-  String _fmtDate(DateTime? d) =>
-      d == null ? '' : '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
+  String _fmtDate(DateTime? d) => d == null
+      ? ''
+      : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  // ── Submit ────────────────────────────────────────────────────
+  // ── Submit (create / update) ──────────────────────────────────
   Future<bool> submitForm() async {
     if (fcName.text.trim().isEmpty) {
       Get.snackbar('Thiếu thông tin', 'Vui lòng nhập tên sự kiện',
           snackPosition: SnackPosition.BOTTOM);
       return false;
     }
-
-    final dateStart = _parseDate(fcDateStart.text);
-    if (dateStart == null) {
+    if (_parseDate(fcDateStart.text) == null) {
       Get.snackbar('Thiếu thông tin', 'Vui lòng chọn ngày bắt đầu',
           snackPosition: SnackPosition.BOTTOM);
       return false;
@@ -258,8 +277,5 @@ class EventsController extends GetxController {
     }
   }
 
-  DateTime? _parseDate(String s) {
-    if (s.isEmpty) return null;
-    return DateTime.tryParse(s);
-  }
+  DateTime? _parseDate(String s) => s.isEmpty ? null : DateTime.tryParse(s);
 }

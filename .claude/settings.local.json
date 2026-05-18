@@ -8,7 +8,13 @@
       "PowerShell(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\qdaoc\\\\Documents\\\\Git\\\\gb_tinnguong\\\\lib\\\\modules\\\\events\\\\views\")",
       "Bash(flutter analyze *)",
       "Bash(flutter build *)",
-      "Bash(dart analyze *)"
+      "Bash(dart analyze *)",
+      "Bash(Get-ChildItem -Recurse -Directory -ErrorAction SilentlyContinue)",
+      "Bash(Select-String -Pattern 'notif|information|thong' -ErrorAction SilentlyContinue)",
+      "Bash(curl -s \"https://apitinnguong.gvbsoft.vn/api/event/get-list?page=1&limit=20\" -H \"accept: application/json\")",
+      "Bash(curl -s \"https://apitinnguong.gvbsoft.vn/api/event/get-list?statusID=-100&page=1&limit=20\" -H \"accept: application/json\")",
+      "Bash(curl -s \"https://apitinnguong.gvbsoft.vn/api/event/get-list-active?statusID=-100&page=1&limit=20\" -H \"accept: application/json\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' 'https://apitinnguong.gvbsoft.vn__TRACKED_VAR__?page=1&limit=5')"
     ]
   }
 }

@@ -7,27 +7,41 @@ import '../models/office_model.dart';
 class EventService {
   final _dio = DioClient().dio;
 
-  // ── List ──────────────────────────────────────────────────────
-  Future<({List<EventModel> items, int total})> getList({
-    String key = ' ',
-    int statusID = -100,
+  // ── List active ───────────────────────────────────────────────
+  // GET /api/event/get-list-active?dtFrom=...&dtTo=...&page=1&limit=20
+  // dtFrom & dtTo are REQUIRED by the server (omitting them causes 404).
+  // Default: last 2 years → next 1 year to fetch all relevant events.
+  Future<({List<EventModel> items, int total})> getListActive({
+    DateTime? dtFrom,
+    DateTime? dtTo,
     int page = 1,
     int limit = 20,
   }) async {
-    final res = await _dio.get('/api/event/get-list', queryParameters: {
-      'key': key.isEmpty ? ' ' : key,
-      'IsActivity': true,
-      'statusID': statusID,
-      'page': page,
-      'limit': limit,
-    });
+    final now = DateTime.now();
+    final params = <String, dynamic>{
+      'dtFrom': _fmtDt(dtFrom ?? DateTime(now.year - 2, 1, 1)),
+      'dtTo':   _fmtDt(dtTo   ?? DateTime(now.year + 1, 12, 31, 23, 59, 59)),
+      'page':   page,
+      'limit':  limit,
+    };
+
+    final res = await _dio.get('/api/event/get-list-active', queryParameters: params);
     final raw = res.data;
-    final list = raw is List ? raw : (raw is Map ? raw['Data'] ?? raw['data'] ?? [] : []);
+
+    // DioClient unwraps Data automatically; raw may be List or Map
+    final list = raw is List
+        ? raw
+        : (raw is Map ? (raw['Data'] ?? raw['data'] ?? []) : <dynamic>[]);
+
     final items = (list as List)
         .map((e) => EventModel.fromJson(e as Map<String, dynamic>))
         .toList();
-    final total = raw is Map ? (raw['Total'] as num?)?.toInt() ?? items.length : items.length;
-    return (items: items, total: total);
+
+    final serverTotal = raw is Map
+        ? (raw['Total'] as num?)?.toInt()
+        : null;
+
+    return (items: items, total: serverTotal ?? items.length);
   }
 
   // ── Create ────────────────────────────────────────────────────
@@ -45,7 +59,7 @@ class EventService {
     await _dio.post('/api/event/delete-event', data: {'EventID': eventID});
   }
 
-  // ── Dropdowns (parallel-safe, each returns empty list on error) ──
+  // ── Dropdowns ─────────────────────────────────────────────────
   Future<List<TypeEventModel>> getTypeEvents() async {
     try {
       final res = await _dio.get('/api/type-event/get-list-active');
@@ -80,5 +94,16 @@ class EventService {
       log('getOffices error: $e');
       return [];
     }
+  }
+
+  // ── Utils ─────────────────────────────────────────────────────
+  static String _fmtDt(DateTime d) {
+    final y  = d.year;
+    final mo = d.month.toString().padLeft(2, '0');
+    final dd = d.day.toString().padLeft(2, '0');
+    final hh = d.hour.toString().padLeft(2, '0');
+    final mm = d.minute.toString().padLeft(2, '0');
+    final ss = d.second.toString().padLeft(2, '0');
+    return '$y-$mo-$dd $hh:$mm:$ss';
   }
 }
