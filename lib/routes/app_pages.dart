@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'app_routes.dart';
+import '../modules/splash/views/splash_screen.dart';
 import '../modules/auth/bindings/auth_binding.dart';
 import '../modules/auth/views/login_screen.dart';
 import '../modules/main/bindings/main_binding.dart';
@@ -7,13 +8,18 @@ import '../modules/main/views/main_view.dart';
 import '../modules/facilities/views/facility_detail_screen.dart';
 import '../modules/clergy/views/clergy_detail_screen.dart';
 import '../modules/stats/views/stats_screen.dart';
+import '../modules/stats/bindings/stats_binding.dart';
 import '../modules/album/views/album_screen.dart';
 
 class AppPages {
   AppPages._();
-  static const initial = AppRoutes.login;
+  static const initial = AppRoutes.splash;
 
   static final pages = [
+    GetPage(
+      name: AppRoutes.splash,
+      page: () => const SplashScreen(),
+    ),
     GetPage(
       name: AppRoutes.login,
       page: () => const LoginScreen(),
@@ -35,6 +41,7 @@ class AppPages {
     GetPage(
       name: AppRoutes.stats,
       page: () => const StatsScreen(),
+      binding: StatsBinding(),
     ),
     GetPage(
       name: AppRoutes.album,

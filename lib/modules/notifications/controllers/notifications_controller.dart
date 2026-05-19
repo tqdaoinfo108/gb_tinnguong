@@ -6,14 +6,21 @@ import '../../../data/models/information_model.dart';
 class NotificationsController extends GetxController {
   final _dio = DioClient().dio;
 
-  final isLoading = false.obs;
-  final _allItems = <InformationModel>[].obs;
-  final total     = 0.obs;
-  final page      = 1.obs;
-  final limit     = 20;
-  final hasMore   = true.obs;
+  final isLoading    = false.obs;
+  final _allItems    = <InformationModel>[].obs;
+  final total        = 0.obs;
+  final page         = 1.obs;
+  final limit        = 20;
+  final hasMore      = true.obs;
+  final selectedLevel = 0.obs; // 0=all, 1=Khẩn cấp, 2=Thông thường, 3=Thấp
 
   List<InformationModel> get items => _allItems;
+
+  List<InformationModel> get filteredItems {
+    if (selectedLevel.value == 0) return _allItems;
+    return _allItems.where((e) => e.levelID == selectedLevel.value).toList();
+  }
+
   int get unreadCount => _allItems.where((e) => !e.isRead).length;
 
   @override
@@ -30,9 +37,9 @@ class NotificationsController extends GetxController {
     isLoading.value = true;
     try {
       final res = await _dio.get('/api/information/get-list', queryParameters: {
-        'statusID': -100,
         'page':     page.value,
         'limit':    limit,
+        'statusID': -100,
       });
       final raw  = res.data;
       final list = raw is List
@@ -66,6 +73,7 @@ class NotificationsController extends GetxController {
     }
   }
 
+  @override
   Future<void> refresh() => fetchNotifications();
 
   void markAllRead() {

@@ -2,21 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'core/localization/app_translations.dart';
-import 'core/network/dio_client.dart';
 import 'core/theme/app_theme.dart';
 import 'routes/app_pages.dart';
-import 'routes/app_routes.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final token = await DioClient().getToken();
-  final initialRoute = token != null ? AppRoutes.main : AppRoutes.login;
-  runApp(MyApp(initialRoute: initialRoute));
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  final String initialRoute;
-  const MyApp({super.key, required this.initialRoute});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +24,7 @@ class MyApp extends StatelessWidget {
           title: 'Tín Ngưỡng GIS',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light,
-          initialRoute: initialRoute,
+          initialRoute: AppPages.initial,
           getPages: AppPages.pages,
           locale: const Locale('vi', 'VN'),
           fallbackLocale: const Locale('vi', 'VN'),

@@ -14,7 +14,13 @@
       "Bash(curl -s \"https://apitinnguong.gvbsoft.vn/api/event/get-list?page=1&limit=20\" -H \"accept: application/json\")",
       "Bash(curl -s \"https://apitinnguong.gvbsoft.vn/api/event/get-list?statusID=-100&page=1&limit=20\" -H \"accept: application/json\")",
       "Bash(curl -s \"https://apitinnguong.gvbsoft.vn/api/event/get-list-active?statusID=-100&page=1&limit=20\" -H \"accept: application/json\")",
-      "Bash(curl -s -o /dev/null -w '%{http_code}' 'https://apitinnguong.gvbsoft.vn__TRACKED_VAR__?page=1&limit=5')"
+      "Bash(curl -s -o /dev/null -w '%{http_code}' 'https://apitinnguong.gvbsoft.vn__TRACKED_VAR__?page=1&limit=5')",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\qdaoc\\\\Documents\\\\Git\\\\gb_tinnguong\\\\lib\\\\modules\\\\map\" -Recurse -File | ForEach-Object { $_.FullName })",
+      "Bash(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\qdaoc\\\\Documents\\\\Git\\\\gb_tinnguong\\\\lib\\\\modules\\\\stats\\\\controllers\")",
+      "Bash(Out-Null)",
+      "Bash(dart run *)",
+      "Bash(flutter pub *)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp"
     ]
   }
 }

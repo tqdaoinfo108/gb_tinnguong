@@ -1,24 +1,33 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/utils/religion_palette.dart' as palette;
 import '../../../core/values/app_colors.dart';
 import '../../../core/values/app_text_styles.dart';
-import '../../../widgets/circle_icon_button.dart';
-import '../../../widgets/filter_chip.dart';
-import '../../../widgets/status_pill.dart';
+import '../../../data/models/dashboard_model.dart';
+import '../controllers/stats_controller.dart';
+
+// ─── Screen ────────────────────────────────────────────────────────────────────
 
 class StatsScreen extends StatelessWidget {
   const StatsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
+    // Get.find works because StatsBinding registered the controller when the
+    // route was pushed.
+    final ctrl   = Get.find<StatsController>();
+    final top    = MediaQuery.of(context).padding.top;
+    final bottom = MediaQuery.of(context).padding.bottom;
+
     return Scaffold(
       backgroundColor: AppColors.parchment,
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          // Header
+
+          // ── Header ──────────────────────────────────────────────────
           SliverToBoxAdapter(
             child: Padding(
               padding: EdgeInsets.fromLTRB(20, top + 16, 20, 0),
@@ -28,93 +37,197 @@ class StatsScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Thống kê', style: _hero),
-                        Text('Phường 5 · Năm 2026', style: _cap),
-                      ]),
-                      const CircleIconButton(icon: Icons.download_outlined),
+                      Obx(() => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Thống kê', style: _hero),
+                          Text(ctrl.periodLabel, style: _cap),
+                        ],
+                      )),
+                      GestureDetector(
+                        onTap: () {},
+                        child: Container(
+                          width: 40, height: 40,
+                          decoration: BoxDecoration(
+                            color: AppColors.canvas,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.hairline),
+                            boxShadow: [AppColors.lightShadow],
+                          ),
+                          child: const Icon(Icons.download_outlined,
+                              size: 18, color: AppColors.inkMuted),
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
+
                   // Period chips
-                  SingleChildScrollView(
+                  Obx(() => SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     physics: const BouncingScrollPhysics(),
                     child: Row(children: [
-                      TypeChip(label: 'Tháng này'),
+                      _PeriodChip(label: 'Tháng này', active: ctrl.typeSearch.value == 1,
+                          onTap: () => ctrl.setTypeSearch(1)),
                       const SizedBox(width: 8),
-                      TypeChip(label: 'Quý này'),
+                      _PeriodChip(label: 'Quý này', active: ctrl.typeSearch.value == 2,
+                          onTap: () => ctrl.setTypeSearch(2)),
                       const SizedBox(width: 8),
-                      TypeChip(label: 'Năm 2026', active: true),
+                      _PeriodChip(label: 'Năm nay', active: ctrl.typeSearch.value == 3,
+                          onTap: () => ctrl.setTypeSearch(3)),
                       const SizedBox(width: 8),
-                      TypeChip(label: 'Năm 2025'),
+                      _PeriodChip(label: 'Tùy chọn', active: ctrl.typeSearch.value == 4,
+                          onTap: () => ctrl.setTypeSearch(4)),
                     ]),
-                  ),
+                  )),
+
+                  // Custom date row
+                  Obx(() => ctrl.typeSearch.value == 4
+                      ? Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: _CustomDateRow(ctrl: ctrl),
+                        )
+                      : const SizedBox.shrink()),
                 ],
               ),
             ),
           ),
 
-          // Hero KPI
+          // ── Loading ──────────────────────────────────────────────────
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: _HeroKpiCard(),
-            ),
+            child: Obx(() => ctrl.isLoading.value
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 80),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                          color: AppColors.primary, strokeWidth: 2),
+                    ),
+                  )
+                : const SizedBox.shrink()),
           ),
 
-          // 2×2 KPI grid
+          // ── Error ────────────────────────────────────────────────────
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 1.6,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                children: const [
-                  _BigKpi(label: 'Tổng tín đồ', value: '8.420', unit: 'người', delta: '↑ +124', tone: _KpiTone.ok),
-                  _BigKpi(label: 'Chức sắc', value: '68', unit: 'người', delta: '— 0', tone: _KpiTone.neutral),
-                  _BigKpi(label: 'Lễ hội 2026', value: '12', unit: 'lễ hội', delta: '↓ -2', tone: _KpiTone.warn),
-                  _BigKpi(label: 'Diện tích đất', value: '18.420', unit: 'm²', delta: '↑ +340', tone: _KpiTone.ok),
-                ],
-              ),
-            ),
+            child: Obx(() => ctrl.hasError.value && !ctrl.isLoading.value
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(40, 60, 40, 0),
+                    child: Column(children: [
+                      const Icon(Icons.cloud_off_rounded,
+                          size: 42, color: AppColors.inkFaint),
+                      const SizedBox(height: 12),
+                      Text('Không tải được dữ liệu',
+                          style: GoogleFonts.inter(
+                              fontSize: 15, color: AppColors.inkSoft),
+                          textAlign: TextAlign.center),
+                      const SizedBox(height: 12),
+                      OutlinedButton(
+                        onPressed: ctrl.load,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: Text('Thử lại',
+                            style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    ]),
+                  )
+                : const SizedBox.shrink()),
           ),
 
-          // Donut chart
+          // ── Hero KPI (Cơ sở tôn giáo) ───────────────────────────────
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: _LegalStatusCard(),
-            ),
+            child: Obx(() {
+              if (ctrl.isLoading.value || ctrl.hasError.value) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                child: _HeroKpiCard(dashboard: ctrl.dashboard.value),
+              );
+            }),
           ),
 
-          // Area chart
+          // ── 2×2 KPI grid ─────────────────────────────────────────────
           SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: _TrendCard(),
-            ),
+            child: Obx(() {
+              if (ctrl.isLoading.value || ctrl.hasError.value) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                child: _KpiGrid(dashboard: ctrl.dashboard.value),
+              );
+            }),
           ),
 
-          // Recent activity
-          SliverToBoxAdapter(child: _ActivitySection()),
+          // ── Legal status donut ────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Obx(() {
+              final d = ctrl.dashboard.value;
+              if (ctrl.isLoading.value || ctrl.hasError.value ||
+                  d.statusData.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                child: _LegalStatusCard(dashboard: d),
+              );
+            }),
+          ),
 
-          const SliverToBoxAdapter(child: SizedBox(height: 100)),
+          // ── Profile completion radial ─────────────────────────────────
+          SliverToBoxAdapter(
+            child: Obx(() {
+              final d = ctrl.dashboard.value;
+              if (ctrl.isLoading.value || ctrl.hasError.value ||
+                  d.profileData.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                child: _ProfileCard(data: d.profileData),
+              );
+            }),
+          ),
+
+          // ── Warning card ──────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Obx(() {
+              final d = ctrl.dashboard.value;
+              if (ctrl.isLoading.value || ctrl.hasError.value) {
+                return const SizedBox.shrink();
+              }
+              final noPermit =
+                  (d.totalEvent - d.totalEventPermit).clamp(0, 999);
+              if (noPermit == 0) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                child: _WarningCard(noPermit: noPermit),
+              );
+            }),
+          ),
+
+          SliverToBoxAdapter(child: SizedBox(height: bottom + 48)),
         ],
       ),
     );
   }
 }
 
-// ─── Hero KPI ──────────────────────────────────────────────────
+// ─── Hero KPI ──────────────────────────────────────────────────────────────────
 
 class _HeroKpiCard extends StatelessWidget {
+  final DashboardModel dashboard;
+  const _HeroKpiCard({required this.dashboard});
+
   @override
   Widget build(BuildContext context) {
+    final total = dashboard.totalOffice;
+    final bars  = dashboard.religionData;
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -125,35 +238,36 @@ class _HeroKpiCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('CƠ SỞ TÔN GIÁO', style: GoogleFonts.inter(
-            fontSize: 11, fontWeight: FontWeight.w500,
-            color: AppColors.inkSoft, letterSpacing: 0.05,
-          )),
+          Text('CƠ SỞ TÔN GIÁO', style: _labelSm),
           const SizedBox(height: 4),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              Text('48', style: GoogleFonts.inter(
+              Text('$total', style: GoogleFonts.inter(
                 fontSize: 48, fontWeight: FontWeight.w700,
                 color: AppColors.ink, letterSpacing: -0.03, height: 1,
               )),
               const SizedBox(width: 8),
-              Text('cơ sở', style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkSoft)),
-              const Spacer(),
-              const StatusPill(kind: PillKind.emerald, label: '↑ +2', fontSize: 11),
+              Text('cơ sở', style: GoogleFonts.inter(
+                  fontSize: 13, color: AppColors.inkSoft)),
             ],
           ),
           const SizedBox(height: 18),
-          _ReligionBar(label: 'Phật giáo', count: 22, max: 48, color: AppColors.buddhism),
-          const SizedBox(height: 8),
-          _ReligionBar(label: 'Công giáo', count: 11, max: 48, color: AppColors.catholic),
-          const SizedBox(height: 8),
-          _ReligionBar(label: 'Cao Đài', count: 6, max: 48, color: AppColors.caodai),
-          const SizedBox(height: 8),
-          _ReligionBar(label: 'Tin Lành', count: 4, max: 48, color: AppColors.protestant),
-          const SizedBox(height: 8),
-          _ReligionBar(label: 'Khác', count: 5, max: 48, color: AppColors.folk),
+          if (bars.isNotEmpty)
+            for (int i = 0; i < bars.length; i++) ...[
+              if (i > 0) const SizedBox(height: 8),
+              _ReligionBar(
+                label: bars[i].religionName,
+                count: bars[i].total,
+                max: total > 0 ? total : 1,
+                color: palette.religionColor(bars[i].religionName),
+              ),
+            ]
+          else
+            Text('Chưa có dữ liệu phân bố',
+                style: GoogleFonts.inter(
+                    fontSize: 13, color: AppColors.inkFaint)),
         ],
       ),
     );
@@ -162,87 +276,146 @@ class _HeroKpiCard extends StatelessWidget {
 
 class _ReligionBar extends StatelessWidget {
   final String label;
-  final int count, max;
-  final Color color;
-  const _ReligionBar({required this.label, required this.count, required this.max, required this.color});
+  final int    count, max;
+  final Color  color;
+  const _ReligionBar({required this.label, required this.count,
+      required this.max, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    final pct = count / max;
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label, style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkMuted)),
-            Text('$count', style: GoogleFonts.inter(
-              fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.ink,
-            )),
-          ],
+    final pct = (count / max).clamp(0.0, 1.0);
+    return Column(children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(children: [
+            Container(width: 8, height: 8,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+            const SizedBox(width: 7),
+            Text(label, style: GoogleFonts.inter(
+                fontSize: 13, color: AppColors.inkMuted)),
+          ]),
+          Text('$count', style: GoogleFonts.inter(
+              fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.ink)),
+        ],
+      ),
+      const SizedBox(height: 5),
+      ClipRRect(
+        borderRadius: BorderRadius.circular(999),
+        child: LinearProgressIndicator(
+          value: pct, minHeight: 6,
+          backgroundColor: AppColors.parchment2,
+          valueColor: AlwaysStoppedAnimation<Color>(color),
         ),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: LinearProgressIndicator(
-            value: pct,
-            minHeight: 6,
-            backgroundColor: AppColors.parchment2,
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-          ),
+      ),
+    ]);
+  }
+}
+
+// ─── 2×2 KPI grid ─────────────────────────────────────────────────────────────
+
+class _KpiGrid extends StatelessWidget {
+  final DashboardModel dashboard;
+  const _KpiGrid({required this.dashboard});
+
+  @override
+  Widget build(BuildContext context) {
+    final d         = dashboard;
+    final permitStr = d.totalEvent > 0
+        ? '${d.totalEventPermit}/${d.totalEvent}'
+        : '${d.totalEventPermit}';
+    final noPermit  = (d.totalEvent - d.totalEventPermit).clamp(0, 999);
+
+    return GridView.count(
+      crossAxisCount: 2,
+      crossAxisSpacing: 10, mainAxisSpacing: 10,
+      childAspectRatio: 1.55,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        _KpiTile(
+          icon: Icons.person_outline_rounded,
+          color: AppColors.primary,
+          label: 'CHỨC SẮC – CHỨC VIỆC',
+          value: '${d.totalUser}',
+          unit: 'người',
+        ),
+        _KpiTile(
+          icon: Icons.celebration_outlined,
+          color: AppColors.caodai,
+          label: 'LỄ HỘI CÓ PHÉP',
+          value: permitStr,
+          unit: d.totalEvent > 0 ? 'đã cấp / ${d.totalEvent}' : 'cấp phép',
+        ),
+        _KpiTile(
+          icon: Icons.square_foot_outlined,
+          color: AppColors.folk,
+          label: 'DIỆN TÍCH ĐẤT',
+          value: _fmtArea(d.totalArea),
+          unit: 'm²',
+        ),
+        _KpiTile(
+          icon: noPermit > 0
+              ? Icons.warning_amber_rounded
+              : Icons.check_circle_outline_rounded,
+          color: noPermit > 0 ? AppColors.amberDot : AppColors.emeraldDot,
+          label: 'LỄ HỘI CHƯA PHÉP',
+          value: '$noPermit',
+          unit: 'sự kiện',
+          alert: noPermit > 0,
         ),
       ],
     );
   }
 }
 
-// ─── 2×2 KPI Tiles ─────────────────────────────────────────────
-
-enum _KpiTone { ok, warn, neutral }
-
-class _BigKpi extends StatelessWidget {
-  final String label, value, unit, delta;
-  final _KpiTone tone;
-  const _BigKpi({required this.label, required this.value, required this.unit,
-      required this.delta, required this.tone});
-
-  Color get _deltaColor => switch (tone) {
-    _KpiTone.ok      => AppColors.emeraldFg,
-    _KpiTone.warn    => AppColors.amberFg,
-    _KpiTone.neutral => AppColors.inkSoft,
-  };
+class _KpiTile extends StatelessWidget {
+  final IconData icon;
+  final Color    color;
+  final String   label, value, unit;
+  final bool     alert;
+  const _KpiTile({
+    required this.icon, required this.color,
+    required this.label, required this.value, required this.unit,
+    this.alert = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.canvas,
+        color: alert ? AppColors.amberBg : AppColors.canvas,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: alert
+              ? AppColors.amberDot.withValues(alpha: 0.35)
+              : AppColors.hairline,
+        ),
         boxShadow: [AppColors.cardShadow],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label.toUpperCase(), style: GoogleFonts.inter(
-            fontSize: 10, fontWeight: FontWeight.w500,
-            color: AppColors.inkSoft, letterSpacing: 0.04,
-          )),
-          const SizedBox(height: 4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(value, style: GoogleFonts.inter(
-                fontSize: 24, fontWeight: FontWeight.w700,
-                color: AppColors.ink, letterSpacing: -0.02, height: 1.05,
-              )),
-              const SizedBox(width: 4),
-              Text(unit, style: GoogleFonts.inter(fontSize: 10, color: AppColors.inkSoft)),
-            ],
+          Container(
+            width: 28, height: 28,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 15, color: color),
           ),
-          const SizedBox(height: 6),
-          Text(delta, style: GoogleFonts.inter(
-            fontSize: 11, fontWeight: FontWeight.w700, color: _deltaColor,
+          const Spacer(),
+          Text(value, style: GoogleFonts.inter(
+            fontSize: 22, fontWeight: FontWeight.w700,
+            color: alert ? AppColors.amberFg : AppColors.ink,
+            letterSpacing: -0.02, height: 1.1,
+          )),
+          const SizedBox(height: 2),
+          Text(label, style: GoogleFonts.inter(
+            fontSize: 9, fontWeight: FontWeight.w500,
+            color: alert ? AppColors.amberFg : AppColors.inkSoft,
+            letterSpacing: 0.04,
           )),
         ],
       ),
@@ -250,17 +423,21 @@ class _BigKpi extends StatelessWidget {
   }
 }
 
-// ─── Donut Chart ───────────────────────────────────────────────
+// ─── Legal status donut ────────────────────────────────────────────────────────
 
 class _LegalStatusCard extends StatelessWidget {
+  final DashboardModel dashboard;
+  const _LegalStatusCard({required this.dashboard});
+
   @override
   Widget build(BuildContext context) {
-    const segments = [
-      _DonutSegment(value: 38, color: Color(0xFF2A8A5A)),
-      _DonutSegment(value: 6,  color: Color(0xFFB8870C)),
-      _DonutSegment(value: 3,  color: AppColors.inkSoft),
-      _DonutSegment(value: 1,  color: Color(0xFFB03328)),
-    ];
+    final data  = dashboard.statusData;
+    final total = data.fold<int>(0, (s, e) => s + e.total);
+    final segs  = data.map((s) => _DonutSeg(
+      value: s.total.toDouble(),
+      color: _statusColor(s.statusID, s.statusName),
+    )).toList();
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -271,118 +448,146 @@ class _LegalStatusCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Tình trạng pháp lý', style: GoogleFonts.inter(
-            fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.ink, letterSpacing: -0.01,
-          )),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              SizedBox(
-                width: 100, height: 100,
-                child: CustomPaint(
-                  painter: _DonutPainter(segments: segments, total: 48),
-                  child: Center(child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('48', style: GoogleFonts.inter(
-                        fontSize: 20, fontWeight: FontWeight.w700,
-                        color: AppColors.ink, letterSpacing: -0.03, height: 1,
-                      )),
-                      Text('CƠ SỞ', style: GoogleFonts.inter(
-                        fontSize: 8, color: AppColors.inkSoft, letterSpacing: 0.08,
-                      )),
-                    ],
-                  )),
-                ),
+          Text('Tình trạng pháp lý', style: _cardTitle),
+          const SizedBox(height: 14),
+          Row(children: [
+            SizedBox(
+              width: 110, height: 110,
+              child: CustomPaint(
+                painter: _DonutPainter(segs: segs, total: total.toDouble()),
+                child: Center(child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('$total', style: GoogleFonts.inter(
+                      fontSize: 22, fontWeight: FontWeight.w700,
+                      color: AppColors.ink, letterSpacing: -0.02, height: 1,
+                    )),
+                    Text('CƠ SỞ', style: GoogleFonts.inter(
+                        fontSize: 9, color: AppColors.inkSoft,
+                        letterSpacing: 0.08)),
+                  ],
+                )),
               ),
-              const SizedBox(width: 18),
-              Expanded(child: Column(
-                children: const [
-                  _LegendRow(color: Color(0xFF2A8A5A), label: 'Đã công nhận', value: '38'),
-                  SizedBox(height: 8),
-                  _LegendRow(color: Color(0xFFB8870C), label: 'Đang xét duyệt', value: '6'),
-                  SizedBox(height: 8),
-                  _LegendRow(color: AppColors.inkSoft, label: 'Chưa đăng ký', value: '3'),
-                  SizedBox(height: 8),
-                  _LegendRow(color: Color(0xFFB03328), label: 'Đình chỉ', value: '1'),
+            ),
+            const SizedBox(width: 18),
+            Expanded(child: Column(
+              children: [
+                for (int i = 0; i < data.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 8),
+                  _LegRow(
+                    color: _statusColor(data[i].statusID, data[i].statusName),
+                    label: data[i].statusName,
+                    value: '${data[i].total}',
+                  ),
                 ],
-              )),
-            ],
-          ),
+              ],
+            )),
+          ]),
         ],
       ),
     );
   }
+
+  Color _statusColor(int? id, String name) {
+    if (id != null) {
+      return switch (id) {
+        1 => const Color(0xFF2A8A5A),
+        2 => const Color(0xFFB8870C),
+        3 => AppColors.inkSoft,
+        4 => const Color(0xFFB03328),
+        _ => AppColors.inkFaint,
+      };
+    }
+    final n = name.toLowerCase();
+    if (n.contains('công nhận') || n.contains('đã đăng')) {
+      return const Color(0xFF2A8A5A);
+    }
+    if (n.contains('xét') || n.contains('chờ') || n.contains('đang')) {
+      return const Color(0xFFB8870C);
+    }
+    if (n.contains('đình chỉ') || n.contains('hủy')) {
+      return const Color(0xFFB03328);
+    }
+    return AppColors.inkSoft;
+  }
 }
 
-class _DonutSegment {
+class _DonutSeg {
   final double value;
-  final Color color;
-  const _DonutSegment({required this.value, required this.color});
+  final Color  color;
+  const _DonutSeg({required this.value, required this.color});
 }
 
 class _DonutPainter extends CustomPainter {
-  final List<_DonutSegment> segments;
+  final List<_DonutSeg> segs;
   final double total;
-  const _DonutPainter({required this.segments, required this.total});
+  const _DonutPainter({required this.segs, required this.total});
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width / 2) - 8;
-    const strokeWidth = 14.0;
-    const gap = 0.04;
+    final r      = size.width / 2 - 8;
+    const sw     = 14.0;
+    const gap    = 0.04;
 
-    final bgPaint = Paint()
-      ..color = AppColors.hairline
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth;
-    canvas.drawCircle(center, radius, bgPaint);
+    canvas.drawCircle(center, r,
+        Paint()
+          ..color = AppColors.hairline
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = sw);
+
+    if (total <= 0) return;
 
     double start = -math.pi / 2;
-    for (final seg in segments) {
+    for (final seg in segs) {
       final sweep = (seg.value / total) * 2 * math.pi - gap;
-      final paint = Paint()
-        ..color = seg.color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.butt;
       canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        start, sweep, false, paint,
+        Rect.fromCircle(center: center, radius: r),
+        start, sweep.clamp(0.0, 2 * math.pi), false,
+        Paint()
+          ..color = seg.color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = sw
+          ..strokeCap = StrokeCap.butt,
       );
       start += sweep + gap;
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _DonutPainter o) => o.total != total;
 }
 
-class _LegendRow extends StatelessWidget {
-  final Color color;
-  final String label, value;
-  const _LegendRow({required this.color, required this.label, required this.value});
+class _LegRow extends StatelessWidget {
+  final Color color; final String label, value;
+  const _LegRow({required this.color, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+    Container(width: 9, height: 9,
+        decoration: BoxDecoration(color: color,
+            borderRadius: BorderRadius.circular(3))),
+    const SizedBox(width: 8),
+    Expanded(child: Text(label, style: GoogleFonts.inter(
+        fontSize: 13, color: AppColors.inkMuted))),
+    Text(value, style: GoogleFonts.inter(
+        fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.ink)),
+  ]);
+}
+
+// ─── Profile radial ────────────────────────────────────────────────────────────
+
+class _ProfileCard extends StatelessWidget {
+  final List<ProfileBreakdown> data;
+  const _ProfileCard({required this.data});
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [
-      Container(width: 9, height: 9,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
-      const SizedBox(width: 8),
-      Expanded(child: Text(label, style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkMuted))),
-      Text(value, style: GoogleFonts.inter(
-        fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.ink,
-      )),
-    ]);
-  }
-}
+    final total  = data.fold<int>(0, (s, e) => s + e.total);
+    if (total == 0) return const SizedBox.shrink();
 
-// ─── Area / Trend Chart ────────────────────────────────────────
+    const colors = [AppColors.primary, AppColors.amberDot, AppColors.inkSoft];
 
-class _TrendCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -393,192 +598,278 @@ class _TrendCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text('Xu hướng tín đồ', style: GoogleFonts.inter(
-                fontSize: 17, fontWeight: FontWeight.w600,
-                color: AppColors.ink, letterSpacing: -0.01,
-              )),
-              Text('T1/25 → T5/26', style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkSoft)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 128,
-            child: CustomPaint(
-              painter: _AreaChartPainter(),
-              size: const Size(double.infinity, 110),
+          Text('Hoàn thiện hồ sơ', style: _cardTitle),
+          const SizedBox(height: 16),
+          Row(children: [
+            SizedBox(
+              width: 110, height: 110,
+              child: CustomPaint(
+                painter: _RadialPainter(
+                  segs: [
+                    for (int i = 0; i < data.length; i++)
+                      _RadSeg(
+                        pct: data[i].total / total,
+                        color: colors[i % colors.length],
+                        radius: 42.0 - i * 12,
+                      ),
+                  ],
+                ),
+              ),
             ),
-          ),
+            const SizedBox(width: 18),
+            Expanded(child: Column(
+              children: [
+                for (int i = 0; i < data.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 8),
+                  _LegRow(
+                    color: colors[i % colors.length],
+                    label: data[i].label,
+                    value: '${data[i].total}',
+                  ),
+                ],
+              ],
+            )),
+          ]),
         ],
       ),
     );
   }
 }
 
-class _AreaChartPainter extends CustomPainter {
-  static const pts = [
-    8120.0, 8160, 8200, 8190, 8240, 8280, 8310,
-    8290, 8340, 8360, 8380, 8400, 8420, 8410, 8420, 8420, 8420,
-  ];
-  static const _min = 8000.0;
-  static const _max = 8500.0;
-  static const _labelH = 18.0;
+class _RadSeg {
+  final double pct, radius;
+  final Color  color;
+  const _RadSeg({required this.pct, required this.color, required this.radius});
+}
+
+class _RadialPainter extends CustomPainter {
+  final List<_RadSeg> segs;
+  const _RadialPainter({required this.segs});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final chartH = size.height - _labelH;
-    final w = size.width;
-    final xStep = w / (pts.length - 1);
-
-    Offset toOffset(int i) {
-      final x = i * xStep;
-      final y = chartH - ((pts[i] - _min) / (_max - _min)) * chartH;
-      return Offset(x, y);
+    final center = Offset(size.width / 2, size.height / 2);
+    for (final s in segs) {
+      canvas.drawCircle(center, s.radius,
+          Paint()
+            ..color = AppColors.hairline
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 8);
+      if (s.pct > 0) {
+        canvas.drawArc(
+          Rect.fromCircle(center: center, radius: s.radius),
+          -math.pi / 2, s.pct * 2 * math.pi, false,
+          Paint()
+            ..color = s.color
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 8
+            ..strokeCap = StrokeCap.round,
+        );
+      }
     }
-
-    // Build line path
-    final linePath = Path();
-    linePath.moveTo(0, toOffset(0).dy);
-    for (int i = 1; i < pts.length; i++) {
-      linePath.lineTo(toOffset(i).dx, toOffset(i).dy);
-    }
-
-    // Area fill
-    final areaPath = Path.from(linePath)
-      ..lineTo(w, chartH)
-      ..lineTo(0, chartH)
-      ..close();
-
-    final gradientRect = Rect.fromLTWH(0, 0, w, chartH);
-    final areaPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [AppColors.primary.withValues(alpha: 0.25), AppColors.primary.withValues(alpha: 0.02)],
-      ).createShader(gradientRect);
-    canvas.drawPath(areaPath, areaPaint);
-
-    // Line stroke
-    final linePaint = Paint()
-      ..color = AppColors.primary
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke
-      ..strokeJoin = StrokeJoin.round
-      ..strokeCap = StrokeCap.round;
-    canvas.drawPath(linePath, linePaint);
-
-    // End dot
-    final last = toOffset(pts.length - 1);
-    canvas.drawCircle(last, 4, Paint()..color = AppColors.primary);
-    canvas.drawCircle(last, 4, Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 2);
-
-    // Axis labels
-    final textStyle = TextStyle(
-      fontSize: 9, color: AppColors.inkFaint,
-      fontFamily: GoogleFonts.inter().fontFamily,
-    );
-    _drawText(canvas, 'T1/25', Offset(0, chartH + 4), textStyle, TextAlign.left);
-    _drawText(canvas, 'T5/26', Offset(w, chartH + 4), textStyle, TextAlign.right);
-  }
-
-  void _drawText(Canvas canvas, String text, Offset offset, TextStyle style, TextAlign align) {
-    final tp = TextPainter(
-      text: TextSpan(text: text, style: style),
-      textDirection: TextDirection.ltr,
-      textAlign: align,
-    )..layout();
-    final dx = align == TextAlign.right ? offset.dx - tp.width : offset.dx;
-    tp.paint(canvas, Offset(dx, offset.dy));
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _RadialPainter o) => false;
 }
 
-// ─── Activity Section ──────────────────────────────────────────
+// ─── Warning card ──────────────────────────────────────────────────────────────
 
-class _ActivitySection extends StatelessWidget {
+class _WarningCard extends StatelessWidget {
+  final int noPermit;
+  const _WarningCard({required this.noPermit});
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 20, 0, 4),
-      child: Column(
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.amberBg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.amberDot.withValues(alpha: 0.3)),
+        boxShadow: [AppColors.cardShadow],
+      ),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Hoạt động gần đây', style: GoogleFonts.inter(
-                  fontSize: 19, fontWeight: FontWeight.w600, color: AppColors.ink, letterSpacing: -0.015,
-                )),
-                Text('Xem hết', style: GoogleFonts.inter(
-                  fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary,
-                )),
-              ],
+          Container(
+            width: 36, height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.amberDot.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
             ),
+            child: const Icon(Icons.warning_amber_rounded,
+                size: 18, color: AppColors.amberDot),
           ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.canvas,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [AppColors.cardShadow],
-              ),
-              clipBehavior: Clip.hardEdge,
-              child: Column(children: [
-                _ActivityRow(kind: PillKind.emerald, tag: 'Thêm mới', entity: 'Cơ sở',
-                    name: 'Tịnh xá Ngọc Phương', time: '2 giờ trước'),
-                Divider(color: AppColors.hairline, height: 1, thickness: 1),
-                _ActivityRow(kind: PillKind.blue, tag: 'Cập nhật', entity: 'Sửa chữa',
-                    name: 'Chùa Pháp Hoa · trùng tu mái', time: '5 giờ trước'),
-                Divider(color: AppColors.hairline, height: 1, thickness: 1),
-                _ActivityRow(kind: PillKind.amber, tag: 'Cấp phép', entity: 'Sự kiện',
-                    name: 'Lễ Hiệp Thông · GP-021/2026', time: 'hôm qua'),
-              ]),
-            ),
-          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('$noPermit sự kiện chưa có giấy phép',
+                  style: GoogleFonts.inter(
+                    fontSize: 14, fontWeight: FontWeight.w600,
+                    color: AppColors.amberFg,
+                  )),
+              const SizedBox(height: 3),
+              Text('Cần bổ sung hồ sơ trước khi tổ chức',
+                  style: GoogleFonts.inter(
+                      fontSize: 12, color: AppColors.amberFg
+                          .withValues(alpha: 0.8))),
+            ],
+          )),
         ],
       ),
     );
   }
 }
 
-class _ActivityRow extends StatelessWidget {
-  final PillKind kind;
-  final String tag, entity, name, time;
-  const _ActivityRow({required this.kind, required this.tag,
-      required this.entity, required this.name, required this.time});
+// ─── Period chip ───────────────────────────────────────────────────────────────
+
+class _PeriodChip extends StatelessWidget {
+  final String label;
+  final bool   active;
+  final VoidCallback onTap;
+  const _PeriodChip(
+      {required this.label, required this.active, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(children: [
-        StatusPill(kind: kind, label: tag, fontSize: 10.5),
-        const SizedBox(width: 10),
-        Expanded(child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(name, style: GoogleFonts.inter(
-              fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.ink,
-            )),
-            Text('$entity · $time', style: GoogleFonts.inter(
-              fontSize: 11, color: AppColors.inkSoft,
-            )),
-          ],
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? AppColors.primary : AppColors.canvas,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+              color: active ? AppColors.primary : AppColors.hairline),
+          boxShadow: active ? [] : [AppColors.lightShadow],
+        ),
+        child: Text(label, style: GoogleFonts.inter(
+          fontSize: 13, fontWeight: FontWeight.w600,
+          color: active ? Colors.white : AppColors.inkMuted,
         )),
-      ]),
+      ),
     );
   }
 }
 
-final _hero = AppTextStyles.hero;
-final _cap = AppTextStyles.cap;
+// ─── Custom date row ───────────────────────────────────────────────────────────
+
+class _CustomDateRow extends StatelessWidget {
+  final StatsController ctrl;
+  const _CustomDateRow({required this.ctrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final from = ctrl.customFrom.value;
+      final to   = ctrl.customTo.value;
+      return Row(children: [
+        Expanded(
+          child: _DateField(
+            label: 'Từ ngày',
+            value: from,
+            onPick: (d) {
+              ctrl.customFrom.value = d;
+              final t = ctrl.customTo.value;
+              if (t != null && !d.isAfter(t)) ctrl.load();
+            },
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _DateField(
+            label: 'Đến ngày',
+            value: to,
+            onPick: (d) {
+              ctrl.customTo.value = d;
+              final f = ctrl.customFrom.value;
+              if (f != null && !d.isBefore(f)) ctrl.load();
+            },
+          ),
+        ),
+      ]);
+    });
+  }
+}
+
+class _DateField extends StatelessWidget {
+  final String    label;
+  final DateTime? value;
+  final void Function(DateTime) onPick;
+  const _DateField(
+      {required this.label, this.value, required this.onPick});
+
+  @override
+  Widget build(BuildContext context) {
+    final display = value != null
+        ? '${_p(value!.day)}/${_p(value!.month)}/${value!.year}'
+        : label;
+
+    return GestureDetector(
+      onTap: () async {
+        final now  = DateTime.now();
+        final pick = await showDatePicker(
+          context: context,
+          initialDate: value ?? now,
+          firstDate: DateTime(now.year - 3),
+          lastDate: DateTime(now.year + 2),
+          builder: (ctx, child) => Theme(
+            data: Theme.of(ctx).copyWith(
+              colorScheme:
+                  const ColorScheme.light(primary: AppColors.primary),
+            ),
+            child: child!,
+          ),
+        );
+        if (pick != null) onPick(pick);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.canvas,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.hairline),
+        ),
+        child: Row(children: [
+          const Icon(Icons.calendar_today_outlined,
+              size: 14, color: AppColors.inkSoft),
+          const SizedBox(width: 7),
+          Expanded(child: Text(display, style: GoogleFonts.inter(
+            fontSize: 13,
+            color: value != null ? AppColors.ink : AppColors.inkFaint,
+            fontWeight:
+                value != null ? FontWeight.w500 : FontWeight.w400,
+          ))),
+        ]),
+      ),
+    );
+  }
+}
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
+String _fmtArea(int n) {
+  if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+  if (n >= 1000) {
+    return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}k';
+  }
+  return '$n';
+}
+
+String _p(int n) => n.toString().padLeft(2, '0');
+
+// ─── Text styles ───────────────────────────────────────────────────────────────
+
+final _hero      = AppTextStyles.hero;
+final _cap       = AppTextStyles.cap;
+final _cardTitle = GoogleFonts.inter(
+  fontSize: 17, fontWeight: FontWeight.w600,
+  color: AppColors.ink, letterSpacing: -0.01,
+);
+final _labelSm = GoogleFonts.inter(
+  fontSize: 11, fontWeight: FontWeight.w500,
+  color: AppColors.inkSoft, letterSpacing: 0.05,
+);

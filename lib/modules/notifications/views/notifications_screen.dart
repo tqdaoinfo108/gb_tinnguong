@@ -52,10 +52,12 @@ class NotificationsScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  const FilterChipBar(
+                  Obx(() => FilterChipBar(
                     padding: EdgeInsets.zero,
-                    labels: ['Tất cả', 'Quan trọng', 'Thông tin', 'Hệ thống'],
-                  ),
+                    labels: const ['Tất cả', 'Khẩn cấp', 'Thông thường', 'Thấp'],
+                    activeIndex: ctrl.selectedLevel.value,
+                    onChanged: (i) => ctrl.selectedLevel.value = i,
+                  )),
                 ],
               ),
             ),
@@ -63,7 +65,8 @@ class NotificationsScreen extends StatelessWidget {
 
           // Content
           Obx(() {
-            if (ctrl.isLoading.value && ctrl.items.isEmpty) {
+            final filtered = ctrl.filteredItems;
+            if (ctrl.isLoading.value && filtered.isEmpty) {
               return const SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.symmetric(vertical: 80),
@@ -76,7 +79,7 @@ class NotificationsScreen extends StatelessWidget {
               );
             }
 
-            if (ctrl.items.isEmpty) {
+            if (filtered.isEmpty) {
               return SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 60, 20, 0),
@@ -87,9 +90,9 @@ class NotificationsScreen extends StatelessWidget {
 
             final now       = DateTime.now();
             final yesterday = now.subtract(const Duration(days: 1));
-            final todayItems     = ctrl.items.where((e) => _sameDay(e.dateCreate, now)).toList();
-            final yesterdayItems = ctrl.items.where((e) => _sameDay(e.dateCreate, yesterday)).toList();
-            final olderItems     = ctrl.items
+            final todayItems     = filtered.where((e) => _sameDay(e.dateCreate, now)).toList();
+            final yesterdayItems = filtered.where((e) => _sameDay(e.dateCreate, yesterday)).toList();
+            final olderItems     = filtered
                 .where((e) => !_sameDay(e.dateCreate, now) && !_sameDay(e.dateCreate, yesterday))
                 .toList();
 
@@ -111,7 +114,7 @@ class NotificationsScreen extends StatelessWidget {
                 ],
                 if (todayItems.isEmpty && yesterdayItems.isEmpty && olderItems.isEmpty) ...[
                   _sectionLabel('TẤT CẢ'),
-                  ...ctrl.items.map((e) => _CardWrap(item: e, child: _NotifCard(item: e))),
+                  ...filtered.map((e) => _CardWrap(item: e, child: _NotifCard(item: e))),
                 ],
 
                 // Load more
@@ -125,7 +128,7 @@ class NotificationsScreen extends StatelessWidget {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.primary,
                           side: BorderSide(
-                            color: AppColors.primary.withOpacity(0.4),
+                            color: AppColors.primary.withValues(alpha: 0.4),
                           ),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
@@ -200,12 +203,13 @@ class _CardWrap extends StatelessWidget {
 
 // ── Notification kinds ────────────────────────────────────────────────────────
 
-enum _Kind { alert, info, ok, system }
+// 1 = Khẩn cấp  2 = Thông thường  3 = Thấp
+enum _Kind { urgent, normal, low, system }
 
 _Kind _kindFromLevel(int? level) => switch (level) {
-  1 => _Kind.info,
-  2 => _Kind.alert,
-  3 => _Kind.ok,
+  1 => _Kind.urgent,
+  2 => _Kind.normal,
+  3 => _Kind.low,
   _ => _Kind.system,
 };
 
@@ -219,10 +223,10 @@ class _NotifCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final kind = _kindFromLevel(item.levelID);
     final (bg, fg, icon) = switch (kind) {
-      _Kind.alert  => (AppColors.amberBg,   AppColors.amberDot,   Icons.warning_amber_rounded),
-      _Kind.info   => (AppColors.blueBg,     AppColors.primary,    Icons.notifications_outlined),
-      _Kind.ok     => (AppColors.emeraldBg,  AppColors.emeraldDot, Icons.check_circle_outline_rounded),
-      _Kind.system => (AppColors.slateBg,    AppColors.inkMuted,   Icons.settings_outlined),
+      _Kind.urgent => (AppColors.redBg,      AppColors.redFg,      Icons.warning_rounded),
+      _Kind.normal => (AppColors.blueBg,     AppColors.primary,    Icons.notifications_outlined),
+      _Kind.low    => (AppColors.slateBg,    AppColors.inkMuted,   Icons.info_outline_rounded),
+      _Kind.system => (AppColors.parchment2, AppColors.inkFaint,   Icons.settings_outlined),
     };
     final unread = !item.isRead;
 

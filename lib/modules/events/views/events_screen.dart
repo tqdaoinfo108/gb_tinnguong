@@ -11,6 +11,7 @@ import '../../../data/models/office_model.dart';
 import '../../../widgets/filter_chip.dart';
 import '../../../widgets/status_pill.dart';
 import '../controllers/events_controller.dart';
+import 'event_detail_screen.dart';
 
 // ────────────────────────────────────────────────────────────────
 // EventsScreen alias — used by main_view.dart
@@ -172,10 +173,17 @@ class _ListBody extends StatelessWidget {
                 (context, i) {
                   if (i.isOdd) return const SizedBox(height: 12);
                   final event = list[i ~/ 2];
-                  return _EventCard(
-                    event: event,
-                    onEdit: () => _openForm(context, ctrl, event),
-                    onDelete: () => ctrl.deleteEvent(event),
+                  return GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => EventDetailScreen(event: event),
+                      ),
+                    ),
+                    child: _EventCard(
+                      event: event,
+                      onEdit: () => _openForm(context, ctrl, event),
+                      onDelete: () => ctrl.deleteEvent(event),
+                    ),
                   );
                 },
                 childCount: list.length * 2 - 1,
@@ -312,7 +320,14 @@ class _CalendarBody extends StatelessWidget {
                         children: [
                           for (int i = 0; i < ctrl.calMonthEvents.length; i++) ...[
                             if (i > 0) const Divider(color: AppColors.hairline, thickness: 1, height: 1),
-                            _CalEventRow(event: ctrl.calMonthEvents[i]),
+                            GestureDetector(
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => EventDetailScreen(event: ctrl.calMonthEvents[i]),
+                                ),
+                              ),
+                              child: _CalEventRow(event: ctrl.calMonthEvents[i]),
+                            ),
                           ],
                         ],
                       ),

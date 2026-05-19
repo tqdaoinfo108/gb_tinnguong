@@ -287,21 +287,22 @@ class _NavDelegate extends SliverPersistentHeaderDelegate {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-enum _Kind { alert, info, ok, system }
+// 1 = Khẩn cấp  2 = Thông thường  3 = Thấp
+enum _Kind { urgent, normal, low, system }
 
 _Kind _kindFromLevel(int? level) => switch (level) {
-  1 => _Kind.info,
-  2 => _Kind.alert,
-  3 => _Kind.ok,
+  1 => _Kind.urgent,
+  2 => _Kind.normal,
+  3 => _Kind.low,
   _ => _Kind.system,
 };
 
 (Color bg, Color fg, IconData icon, String label) _attrs(_Kind kind) =>
     switch (kind) {
-      _Kind.alert  => (AppColors.amberBg,   AppColors.amberDot,   Icons.warning_amber_rounded,       'Quan trọng'),
-      _Kind.info   => (AppColors.blueBg,    AppColors.primary,    Icons.notifications_outlined,       'Thông tin'),
-      _Kind.ok     => (AppColors.emeraldBg, AppColors.emeraldDot, Icons.check_circle_outline_rounded, 'Xác nhận'),
-      _Kind.system => (AppColors.slateBg,   AppColors.inkMuted,   Icons.settings_outlined,            'Hệ thống'),
+      _Kind.urgent => (AppColors.redBg,      AppColors.redFg,    Icons.warning_rounded,             'Khẩn cấp'),
+      _Kind.normal => (AppColors.blueBg,     AppColors.primary,  Icons.notifications_outlined,      'Thông thường'),
+      _Kind.low    => (AppColors.slateBg,    AppColors.inkMuted, Icons.info_outline_rounded,        'Thấp'),
+      _Kind.system => (AppColors.parchment2, AppColors.inkFaint, Icons.settings_outlined,           'Hệ thống'),
     };
 
 String _stripHtml(String html) =>

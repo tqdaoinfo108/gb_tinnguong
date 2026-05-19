@@ -55,6 +55,16 @@ class EventsController extends GetxController {
   List<EventModel> get alertEvents =>
       _allEvents.where((e) => e.statusID == 1 && e.hasPermit != true).toList();
 
+  // ── Upcoming: for home screen ─────────────────────────────────
+  List<EventModel> get upcomingEvents {
+    final list = _allEvents
+        .where((e) => e.statusID == 1 || e.statusID == 2)
+        .toList()
+      ..sort((a, b) =>
+          (a.dateStart ?? DateTime(9999)).compareTo(b.dateStart ?? DateTime(9999)));
+    return list;
+  }
+
   // ── KPI (from raw list, not filtered) ────────────────────────
   int get countUpcoming => _allEvents.where((e) => e.statusID == 1).length;
   int get countPermit   => _allEvents.where((e) => e.hasPermit == true).length;
