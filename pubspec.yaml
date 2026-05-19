@@ -118,12 +118,12 @@ flutter_launcher_icons:
   adaptive_icon_background: "#ffffff"
 
 flutter_native_splash:
-  color: "#0C1420"
+  color: "#F4F2EC"
   image: assets/app-icon-mark-1024.png
   android: true
   ios: true
   fullscreen: true
   android_12:
-    color: "#0C1420"
+    color: "#F4F2EC"
     image: assets/app-icon-mark-1024.png
-    icon_background_color: "#0C1420"
+    icon_background_color: "#F4F2EC"

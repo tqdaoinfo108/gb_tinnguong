@@ -10,6 +10,7 @@ import '../../map/views/map_screen.dart';
 import '../../events/views/events_screen.dart';
 import '../../news/views/news_screen.dart';
 import '../../notifications/views/notifications_screen.dart';
+import '../../account/views/account_screen.dart';
 
 class MainView extends GetView<MainController> {
   const MainView({super.key});
@@ -27,6 +28,7 @@ class MainView extends GetView<MainController> {
             EventsScreen(),
             NewsScreen(),
             NotificationsScreen(),
+            AccountScreen(),
           ],
         )),
         extendBody: true,
@@ -68,6 +70,8 @@ class _TnTabBar extends StatelessWidget {
                   label: 'Tin tức', active: currentIndex == 3, onTap: () => onTap(3)),
               _Tab(icon: Icons.notifications_outlined, activeIcon: Icons.notifications_rounded,
                   label: 'Thông báo', active: currentIndex == 4, onTap: () => onTap(4), badge: 3),
+              _Tab(icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded,
+                  label: 'Tài khoản', active: currentIndex == 5, onTap: () => onTap(5)),
             ],
           ),
         ),

@@ -14,8 +14,8 @@ class AppColors {
 
   // Surfaces
   static const Color canvas = Color(0xFFFFFFFF);
-  static const Color parchment = Color(0xFFF8F7F3);   // lighter warm white
-  static const Color parchment2 = Color(0xFFEEEBE2);  // slightly lighter
+  static const Color parchment = Color(0xFFF4F2EC);   // warm off-white (base bg)
+  static const Color parchment2 = Color(0xFFEAE7DE);  // secondary surface
   static const Color tileDark = Color(0xFF1E2D3D);
   static const Color tileDark2 = Color(0xFF243345);
 

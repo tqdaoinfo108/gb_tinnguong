@@ -5,6 +5,7 @@ import '../../map/controllers/map_controller.dart';
 import '../../events/controllers/events_controller.dart';
 import '../../news/controllers/news_controller.dart';
 import '../../notifications/controllers/notifications_controller.dart';
+import '../../account/controllers/account_controller.dart';
 
 class MainBinding extends Bindings {
   @override
@@ -15,5 +16,6 @@ class MainBinding extends Bindings {
     Get.lazyPut(() => EventsController());
     Get.lazyPut(() => NewsController());
     Get.lazyPut(() => NotificationsController());
+    Get.lazyPut(() => AccountController());
   }
 }

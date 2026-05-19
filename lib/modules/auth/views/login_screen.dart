@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
 import '../../../core/values/app_colors.dart';
@@ -9,233 +10,304 @@ class LoginScreen extends GetView<AuthController> {
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.of(context).padding.top;
-    return Scaffold(
-      backgroundColor: AppColors.tileDark,
-      resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _BrandingBlock(top: top),
-            Expanded(
-              child: SingleChildScrollView(
-                child: _FormCard(bottom: MediaQuery.of(context).padding.bottom),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+    final bottom = MediaQuery.of(context).padding.bottom;
+    final top    = MediaQuery.of(context).padding.top;
 
-class _BrandingBlock extends StatelessWidget {
-  final double top;
-  const _BrandingBlock({required this.top});
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // Gold radial glow
-        Positioned(
-          left: -60, top: -60,
-          child: Container(
-            width: 320, height: 320,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(colors: [
-                AppColors.gold.withValues(alpha: 0.22),
-                Colors.transparent,
-              ]),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(28, 36, 28, 36),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: AppColors.parchment,
+        resizeToAvoidBottomInset: true,
+        body: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(28, top + 24, 28, bottom + 32),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('TIN NGƯỠNG · GIS', style: GoogleFonts.inter(
-                fontSize: 11, fontWeight: FontWeight.w500,
-                color: AppColors.goldSoft, letterSpacing: 0.06,
-              )),
-              const SizedBox(height: 20),
-              Container(
-                width: 52, height: 52,
-                decoration: BoxDecoration(
-                  color: AppColors.gold.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.gold.withValues(alpha: 0.35), width: 1),
-                ),
-                child: const Icon(Icons.account_balance_rounded, size: 24, color: AppColors.gold),
+
+              // ── Logo mark ──────────────────────────────────────
+              Image.asset(
+                'assets/app-icon-mark-1024.png',
+                width: 48, height: 48,
+                alignment: Alignment.centerLeft,
               ),
+
+              const SizedBox(height: 32),
+
+              // ── Heading ────────────────────────────────────────
+              Text(
+                'Đăng nhập',
+                style: GoogleFonts.inter(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.ink,
+                  letterSpacing: -0.5,
+                  height: 1.1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Sử dụng tài khoản công vụ do Phòng Nội vụ\nPhường 5 cấp.',
+                style: GoogleFonts.inter(
+                  fontSize: 14,
+                  color: AppColors.inkSoft,
+                  height: 1.5,
+                ),
+              ),
+
+              const SizedBox(height: 36),
+
+              // ── Username ───────────────────────────────────────
+              const _FieldLabel('Mã cán bộ hoặc email'),
+              const SizedBox(height: 8),
+              _UsernameField(ctrl: controller),
+
+              const SizedBox(height: 20),
+
+              // ── Password ───────────────────────────────────────
+              const _FieldLabel('Mật khẩu'),
+              const SizedBox(height: 8),
+              _PasswordField(ctrl: controller),
+
               const SizedBox(height: 16),
-              Text('Tín Ngưỡng GIS', style: GoogleFonts.inter(
-                fontSize: 30, fontWeight: FontWeight.w700,
-                color: AppColors.onDark, letterSpacing: -0.025, height: 1.12,
+
+              // ── Remember me + Forgot ───────────────────────────
+              Row(
+                children: [
+                  Obx(() => GestureDetector(
+                    onTap: () => controller.rememberMe.toggle(),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          width: 20, height: 20,
+                          decoration: BoxDecoration(
+                            color: controller.rememberMe.value
+                                ? AppColors.primary
+                                : AppColors.canvas,
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(
+                              color: controller.rememberMe.value
+                                  ? AppColors.primary
+                                  : AppColors.hairlineStrong,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: controller.rememberMe.value
+                              ? const Icon(Icons.check_rounded,
+                                  size: 13, color: Colors.white)
+                              : null,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Ghi nhớ thiết bị',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            color: AppColors.inkMuted,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+
+                  const Spacer(),
+
+                  Text(
+                    'Quên mật khẩu?',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 28),
+
+              // ── Login button ───────────────────────────────────
+              Obx(() => _LoginButton(
+                loading: controller.isLoading.value,
+                onTap: controller.login,
               )),
-              const SizedBox(height: 6),
-              Text('Phường 5 · Quận Bình Thạnh', style: GoogleFonts.inter(
-                fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.onDarkMuted,
-              )),
+
+              const SizedBox(height: 40),
+
+              // ── Footer ─────────────────────────────────────────
+              Center(
+                child: RichText(
+                  textAlign: TextAlign.center,
+                  text: TextSpan(
+                    style: GoogleFonts.inter(
+                        fontSize: 13, color: AppColors.inkSoft),
+                    children: [
+                      const TextSpan(text: 'Chưa có tài khoản? Liên hệ '),
+                      TextSpan(
+                        text: 'Phòng Nội vụ Phường 5',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              Center(
+                child: Text(
+                  'Hỗ trợ  ·  Điều khoản  ·  Quyền riêng tư',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppColors.inkFaint,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              Center(
+                child: Text(
+                  'Tín Ngưỡng  ·  v 1.0.0  ·  build 2026.05',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    color: AppColors.primary.withValues(alpha: 0.45),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
-      ],
-    );
-  }
-}
-
-class _FormCard extends GetView<AuthController> {
-  final double bottom;
-  const _FormCard({required this.bottom});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: BoxConstraints(
-        minHeight: MediaQuery.of(context).size.height * 0.55,
-      ),
-      decoration: const BoxDecoration(
-        color: AppColors.canvas,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: EdgeInsets.fromLTRB(28, 32, 28, bottom + 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Đăng nhập', style: GoogleFonts.inter(
-            fontSize: 22, fontWeight: FontWeight.w700,
-            color: AppColors.ink, letterSpacing: -0.015,
-          )),
-          const SizedBox(height: 4),
-          Text('Nhập thông tin tài khoản để tiếp tục', style: GoogleFonts.inter(
-            fontSize: 13, color: AppColors.inkSoft,
-          )),
-          const SizedBox(height: 28),
-
-          // Username
-          _FieldLabel('Tên đăng nhập'),
-          const SizedBox(height: 7),
-          _InputBox(
-            controller: controller.usernameController,
-            hint: 'Nhập tên đăng nhập',
-            icon: Icons.person_outline_rounded,
-            textInputAction: TextInputAction.next,
-          ),
-          const SizedBox(height: 18),
-
-          // Password
-          _FieldLabel('Mật khẩu'),
-          const SizedBox(height: 7),
-          Obx(() => _InputBox(
-            controller: controller.passwordController,
-            hint: '••••••••',
-            icon: Icons.lock_outline_rounded,
-            obscure: !controller.passwordVisible.value,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => controller.login(),
-            suffix: GestureDetector(
-              onTap: controller.togglePasswordVisibility,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 14),
-                child: Icon(
-                  controller.passwordVisible.value
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                  size: 18, color: AppColors.inkSoft,
-                ),
-              ),
-            ),
-          )),
-
-          const SizedBox(height: 32),
-
-          // Login button
-          Obx(() => _LoginButton(
-            loading: controller.isLoading.value,
-            onTap: controller.login,
-          )),
-
-          const SizedBox(height: 32),
-
-          Center(child: Text(
-            'v1.0.0 · Hệ thống quản lý tín ngưỡng',
-            style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkFaint),
-          )),
-        ],
       ),
     );
   }
 }
+
+// ── Field label (ALL CAPS, primary blue) ──────────────────────────────────────
 
 class _FieldLabel extends StatelessWidget {
   final String text;
   const _FieldLabel(this.text);
 
   @override
-  Widget build(BuildContext context) => Text(text, style: GoogleFonts.inter(
-    fontSize: 12, fontWeight: FontWeight.w600,
-    color: AppColors.inkMuted, letterSpacing: 0.01,
-  ));
+  Widget build(BuildContext context) => Text(
+    text.toUpperCase(),
+    style: GoogleFonts.inter(
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      color: AppColors.primary,
+      letterSpacing: 0.8,
+    ),
+  );
 }
 
-class _InputBox extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final IconData icon;
-  final bool obscure;
-  final Widget? suffix;
-  final TextInputAction? textInputAction;
-  final ValueChanged<String>? onSubmitted;
+// ── Username field ────────────────────────────────────────────────────────────
 
-  const _InputBox({
-    required this.controller,
-    required this.hint,
-    required this.icon,
-    this.obscure = false,
-    this.suffix,
-    this.textInputAction,
-    this.onSubmitted,
-  });
+class _UsernameField extends StatelessWidget {
+  final AuthController ctrl;
+  const _UsernameField({required this.ctrl});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.parchment,
-        borderRadius: BorderRadius.circular(13),
+  Widget build(BuildContext context) => _InputShell(
+    child: TextField(
+      controller: ctrl.usernameController,
+      keyboardType: TextInputType.emailAddress,
+      textInputAction: TextInputAction.next,
+      style: GoogleFonts.inter(
+        fontSize: 14, color: AppColors.ink,
       ),
-      child: Row(
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 14),
-            child: Icon(icon, size: 18, color: AppColors.inkSoft),
+      decoration: InputDecoration(
+        hintText: 'email@donvi.gov.vn',
+        hintStyle: GoogleFonts.inter(
+          fontSize: 14, color: AppColors.inkFaint,
+        ),
+        border: InputBorder.none,
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16, vertical: 15),
+      ),
+    ),
+  );
+}
+
+// ── Password field ────────────────────────────────────────────────────────────
+
+class _PasswordField extends StatelessWidget {
+  final AuthController ctrl;
+  const _PasswordField({required this.ctrl});
+
+  @override
+  Widget build(BuildContext context) => Obx(() => _InputShell(
+    child: Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: ctrl.passwordController,
+            obscureText: !ctrl.passwordVisible.value,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => ctrl.login(),
+            style: GoogleFonts.inter(
+              fontSize: 15, color: AppColors.ink,
+              letterSpacing: ctrl.passwordVisible.value ? 0 : 2,
+            ),
+            decoration: InputDecoration(
+              hintText: '••••••••••',
+              hintStyle: GoogleFonts.inter(
+                fontSize: 15, color: AppColors.inkFaint,
+              ),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 15),
+            ),
           ),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              obscureText: obscure,
-              textInputAction: textInputAction,
-              onSubmitted: onSubmitted,
-              style: GoogleFonts.inter(fontSize: 15, color: AppColors.ink),
-              decoration: InputDecoration(
-                hintText: hint,
-                hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.inkFaint),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+        ),
+        GestureDetector(
+          onTap: ctrl.togglePasswordVisibility,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Text(
+              ctrl.passwordVisible.value ? 'Ẩn' : 'Hiện',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
               ),
             ),
           ),
-          ?suffix,
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  ));
 }
+
+// ── Input shell (white card, hairline border) ─────────────────────────────────
+
+class _InputShell extends StatelessWidget {
+  final Widget child;
+  const _InputShell({required this.child});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      color: AppColors.canvas,
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: AppColors.hairline),
+      boxShadow: [
+        BoxShadow(
+          color: AppColors.ink.withValues(alpha: 0.04),
+          blurRadius: 8, offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: child,
+  );
+}
+
+// ── Login button ──────────────────────────────────────────────────────────────
 
 class _LoginButton extends StatelessWidget {
   final bool loading;
@@ -243,25 +315,50 @@ class _LoginButton extends StatelessWidget {
   const _LoginButton({required this.loading, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: loading ? null : onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        height: 52,
-        decoration: BoxDecoration(
-          color: loading ? AppColors.primary.withValues(alpha: 0.55) : AppColors.primary,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Center(
-          child: loading
-              ? const SizedBox(width: 22, height: 22,
-                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-              : Text('Đăng nhập', style: GoogleFonts.inter(
-                  fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white,
-                )),
-        ),
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: loading ? null : onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      height: 54,
+      decoration: BoxDecoration(
+        color: loading
+            ? AppColors.tileDark.withValues(alpha: 0.55)
+            : AppColors.tileDark,
+        borderRadius: BorderRadius.circular(27),
       ),
-    );
-  }
+      child: Center(
+        child: loading
+            ? const SizedBox(
+                width: 22, height: 22,
+                child: CircularProgressIndicator(
+                    color: Colors.white, strokeWidth: 2.5))
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Đăng nhập',
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    width: 22, height: 22,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 16, color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    ),
+  );
 }

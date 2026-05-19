@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'dart:convert' show base64Encode, utf8, jsonEncode;
 import 'dart:developer';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -11,8 +11,9 @@ import '../../../routes/app_routes.dart';
 class AuthController extends GetxController {
   final _dioClient = DioClient();
 
-  final isLoading = false.obs;
+  final isLoading       = false.obs;
   final passwordVisible = false.obs;
+  final rememberMe      = true.obs;
   final usernameController = TextEditingController();
   final passwordController = TextEditingController();
 
@@ -48,6 +49,7 @@ class AuthController extends GetxController {
       final data = res.data;
       if (data != null && data is Map<String, dynamic> && data['TokenID'] != null) {
         await _dioClient.saveToken(data['TokenID'] as String);
+        await _dioClient.saveUserJson(jsonEncode(data));
         currentUser.value = UserModel.fromJson(data);
         Get.offAllNamed(AppRoutes.main);
       } else {

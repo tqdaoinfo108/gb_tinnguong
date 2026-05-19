@@ -66,6 +66,8 @@ class DioClient {
   Dio get dio => _dio;
 
   // Utilities
+  static const String _userKey = 'tinnguong.user';
+
   Future<void> saveToken(String token) async {
     await _storage.write(key: _tokenKey, value: token);
   }
@@ -74,7 +76,16 @@ class DioClient {
     return await _storage.read(key: _tokenKey);
   }
 
+  Future<void> saveUserJson(String json) async {
+    await _storage.write(key: _userKey, value: json);
+  }
+
+  Future<String?> getUserJson() async {
+    return await _storage.read(key: _userKey);
+  }
+
   Future<void> clearAuth() async {
     await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: _userKey);
   }
 }
