@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/values/app_colors.dart';
@@ -7,6 +8,7 @@ import '../../controllers/map_controller.dart';
 import 'banner_carousel.dart';
 import 'album_grid.dart';
 import 'document_list.dart';
+import 'events_section.dart';
 
 /// Bottom sheet popup chi tiết cơ sở — hiện khi tap marker.
 class FacilityPopup extends GetView<GisMapController> {
@@ -162,7 +164,13 @@ class FacilityPopup extends GetView<GisMapController> {
                     // ── Spec grid ──
                     _SpecGrid(office: office),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
+
+                    // ── Người trụ trì ──
+                    if (!isLoading)
+                      _LeaderCard(ctrl: controller),
+
+                    const SizedBox(height: 14),
 
                     // ── Status + Xem hồ sơ ──
                     Row(
@@ -209,6 +217,9 @@ class FacilityPopup extends GetView<GisMapController> {
                       const SizedBox(height: 14),
                       _ProfileSection(detail: detail),
                     ],
+
+                    // ── Sự kiện trong năm ──
+                    if (!isLoading) const EventsSection(),
 
                     // ── Albums section ──
                     if (!isLoading && hasAlbums) const AlbumGrid(),
@@ -581,6 +592,134 @@ class _ProfileSection extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Leader card (người trụ trì) ────────────────────────────────
+class _LeaderCard extends StatelessWidget {
+  final GisMapController ctrl;
+  const _LeaderCard({required this.ctrl});
+
+  @override
+  Widget build(BuildContext context) => Obx(() {
+    final leader = ctrl.officeLeader.value;
+
+    // Chưa load xong hoặc không có dữ liệu → không render
+    if (leader == null) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.canvas,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.hairline),
+        boxShadow: [AppColors.lightShadow],
+      ),
+      child: Row(
+        children: [
+          // Avatar initials
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF3B6FA0), Color(0xFF2F5B85)],
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                leader.initials,
+                style: GoogleFonts.inter(
+                  fontSize: 16, fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 12),
+
+          // Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        leader.fullName,
+                        style: GoogleFonts.inter(
+                          fontSize: 14, fontWeight: FontWeight.w600,
+                          color: AppColors.ink,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    // Status dot
+                    if (leader.statusName != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.emeraldBg,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          leader.statusName!,
+                          style: GoogleFonts.inter(
+                            fontSize: 10, fontWeight: FontWeight.w600,
+                            color: AppColors.emeraldFg,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  leader.positionName ?? 'Người lãnh đạo',
+                  style: GoogleFonts.inter(
+                    fontSize: 12, color: AppColors.inkSoft,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Phone button
+          if (leader.phone != null && leader.phone!.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: leader.phone!));
+                Get.snackbar(
+                  'Đã sao chép',
+                  leader.phone!,
+                  snackPosition: SnackPosition.BOTTOM,
+                  backgroundColor: AppColors.emeraldBg,
+                  colorText: AppColors.emeraldFg,
+                  margin: const EdgeInsets.all(16),
+                  borderRadius: 12,
+                  duration: const Duration(seconds: 2),
+                );
+              },
+              child: Container(
+                width: 38, height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.blueBg,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.phone_outlined,
+                    size: 17, color: AppColors.primary),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  });
 }
 
 class _ProfileRow extends StatelessWidget {

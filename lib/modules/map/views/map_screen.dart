@@ -4,10 +4,10 @@ import 'package:latlong2/latlong.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/values/app_colors.dart';
+import '../../../data/models/map_layer_model.dart';
 import '../controllers/map_controller.dart';
 import 'widgets/map_filter_panel.dart';
 import 'widgets/facility_popup.dart';
-import 'widgets/facility_list_sheet.dart';
 import 'widgets/image_lightbox.dart';
 
 class MapScreen extends StatefulWidget {
@@ -22,6 +22,7 @@ class _MapScreenState extends State<MapScreen> {
   final _searchFocus = FocusNode();
   final _searchTextCtrl = TextEditingController();
   bool _searchActive = false;
+  bool _initialMoveDone = false;
 
   @override
   void initState() {
@@ -167,42 +168,65 @@ class _MapScreenState extends State<MapScreen> {
       options: MapOptions(
         initialCenter: ctrl.initialCenter,
         initialZoom: 13.0,
-        onTap: (_, _) {
+        onMapReady: () {
+          // Chỉ fit 1 lần duy nhất khi map render xong lần đầu
+          if (!_initialMoveDone) {
+            _initialMoveDone = true;
+            ctrl.fitBoundary();
+            // Fetch POI đã lưu (viewport sẵn sàng từ lúc này)
+            ctrl.onMapReadyFetchPois();
+          }
+        },
+        onTap: (tp, latlng) {
           ctrl.closePopup();
           if (_searchActive) _closeSearch();
         },
       ),
       children: [
-        TileLayer(
-          urlTemplate: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
-          userAgentPackageName: 'com.tinnguong.gis',
-        ),
+        // ── Tile layer — chọn động theo baseLayer ──────────────────
+        ..._buildTileLayers(ctrl.baseLayer.value),
+
+        // ── Boundary polygon ─────────────────────────────────────────
         if (boundary.length >= 3)
           PolygonLayer(
             polygons: [
               Polygon(
                 points: boundary.toList(),
-                color: AppColors.primary.withValues(alpha: 0.06),
+                color: AppColors.primary.withValues(alpha: 0.05),
                 borderColor: Colors.transparent,
                 borderStrokeWidth: 0,
               ),
               Polygon(
                 points: boundary.toList(),
                 color: Colors.transparent,
-                borderColor: AppColors.primary.withValues(alpha: 0.20),
-                borderStrokeWidth: 6,
+                borderColor: (ctrl.baseLayer.value.isDark
+                        ? Colors.white
+                        : AppColors.primary)
+                    .withValues(alpha: 0.18),
+                borderStrokeWidth: 8,
               ),
               Polygon(
                 points: boundary.toList(),
                 color: Colors.transparent,
-                borderColor: AppColors.primary,
-                borderStrokeWidth: 2.5,
+                borderColor: ctrl.baseLayer.value.isDark
+                    ? Colors.white.withValues(alpha: 0.75)
+                    : AppColors.primary.withValues(alpha: 0.75),
+                borderStrokeWidth: 2,
               ),
             ],
           ),
+
+        // ── Route polyline ────────────────────────────────────────────
         if (route.isNotEmpty)
           PolylineLayer(
             polylines: [
+              // Shadow
+              Polyline(
+                points: route.toList(),
+                color: AppColors.primary.withValues(alpha: 0.20),
+                strokeWidth: 8,
+              ),
+              // Line chính
               Polyline(
                 points: route.toList(),
                 color: AppColors.primary,
@@ -210,22 +234,25 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ],
           ),
+
+        // ── Vị trí người dùng ─────────────────────────────────────────
         if (userLoc != null)
           MarkerLayer(
             markers: [
               Marker(
                 point: userLoc,
-                width: 20,
-                height: 20,
+                width: 22,
+                height: 22,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.blue,
+                    color: const Color(0xFF2F80ED),
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 3),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.blue.withValues(alpha: 0.4),
-                        blurRadius: 12,
+                        color: const Color(0xFF2F80ED).withValues(alpha: 0.45),
+                        blurRadius: 14,
+                        spreadRadius: 2,
                       ),
                     ],
                   ),
@@ -233,6 +260,8 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ],
           ),
+
+        // ── Markers cơ sở tín ngưỡng ──────────────────────────────────
         MarkerLayer(
           markers: offices.map((o) {
             final colorVal =
@@ -240,38 +269,60 @@ class _MapScreenState extends State<MapScreen> {
             final color = Color(colorVal);
             final abbrev = GisMapController.religionAbbrev[o.religionID] ?? '?';
             final isSel = o.officeID == selectedID;
+
             return Marker(
               point: LatLng(o.latitude!, o.longitude!),
-              width: isSel ? 36 : 28,
-              height: isSel ? 36 : 28,
+              width:  isSel ? 42 : 32,
+              height: isSel ? 42 : 32,
               child: GestureDetector(
                 onTap: () => ctrl.onMarkerTap(o),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutBack,
                   decoration: BoxDecoration(
                     color: color,
                     shape: BoxShape.circle,
                     border: Border.all(
                       color: Colors.white,
-                      width: isSel ? 3 : 2.5,
+                      width: isSel ? 3.0 : 2.5,
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isSel
-                            ? color.withValues(alpha: 0.45)
-                            : Colors.black.withValues(alpha: 0.25),
-                        blurRadius: isSel ? 14 : 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    boxShadow: isSel
+                        ? [
+                            // Glow khi được chọn
+                            BoxShadow(
+                              color: color.withValues(alpha: 0.55),
+                              blurRadius: 18,
+                              spreadRadius: 3,
+                              offset: const Offset(0, 2),
+                            ),
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.18),
+                              blurRadius: 6,
+                              offset: const Offset(0, 3),
+                            ),
+                          ]
+                        : [
+                            // Shadow chuẩn khi không chọn
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.30),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                   ),
                   child: Center(
                     child: Text(
                       abbrev,
                       style: GoogleFonts.inter(
-                        fontSize: isSel ? 13 : 10,
-                        fontWeight: FontWeight.w700,
+                        fontSize: isSel ? 15 : 11,
+                        fontWeight: FontWeight.w800,
                         color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black.withValues(alpha: 0.25),
+                            blurRadius: 2,
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -337,11 +388,20 @@ class _SearchOverlay extends StatelessWidget {
           left: 16,
           right: 16,
           child: Obx(() {
-            final q = ctrl.searchQuery.value.trim();
+            final q       = ctrl.searchQuery.value.trim();
             final results = ctrl.searchResults;
+            final workUnit = ctrl.userWorkUnit;
 
+            // Khi chưa gõ gì: hiện chip WorkUnit nếu có (từ cache profile)
             if (q.isEmpty) {
-              return const SizedBox.shrink();
+              if (workUnit == null) return const SizedBox.shrink();
+              return _WorkUnitSuggestion(
+                workUnit: workUnit,
+                onTap: () {
+                  searchTextCtrl.text = workUnit;
+                  ctrl.searchQuery.value = workUnit;
+                },
+              );
             }
 
             return Container(
@@ -386,7 +446,7 @@ class _SearchOverlay extends StatelessWidget {
                           shrinkWrap: true,
                           padding: const EdgeInsets.symmetric(vertical: 6),
                           itemCount: results.length,
-                          separatorBuilder: (_, __) => Divider(
+                          separatorBuilder: (_, i) => Divider(
                             height: 1,
                             color: AppColors.hairline,
                             indent: 64,
@@ -785,3 +845,103 @@ class _MapBtn extends StatelessWidget {
     ),
   );
 }
+
+// ── Helper: xây tile layers theo lựa chọn ────────────────────────────────────
+
+/// Warm ColorFilter — áp lên CartoDB Positron để match palette parchment.
+const _warmFilter = ColorFilter.matrix(<double>[
+  1.0, 0.0, 0.0, 0,  -6,
+  0.0, 1.0, 0.0, 0, -10,
+  0.0, 0.0, 1.0, 0, -20,
+  0.0, 0.0, 0.0, 1,   0,
+]);
+
+// ── WorkUnit suggestion chip ─────────────────────────────────────────────────
+
+class _WorkUnitSuggestion extends StatelessWidget {
+  final String workUnit;
+  final VoidCallback onTap;
+  const _WorkUnitSuggestion({required this.workUnit, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [AppColors.cardShadow],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.blueBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.location_on_rounded,
+                size: 18,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Khu vực của bạn',
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.inkFaint,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    workUnit,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              size: 13,
+              color: AppColors.inkFaint,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+// ── Helper: xây tile layers theo lựa chọn ────────────────────────────────────
+
+List<Widget> _buildTileLayers(MapBaseLayer layer) {
+  final mainTile = TileLayer(
+    urlTemplate: layer.tileUrl,
+    subdomains: layer.subdomains ?? const [],
+    userAgentPackageName: 'com.tinnguong.gis',
+    maxNativeZoom: 19,
+    keepBuffer: 4,
+  );
+
+  return [
+    if (layer.useWarmFilter)
+      ColorFiltered(colorFilter: _warmFilter, child: mainTile)
+    else
+      mainTile,
+  ];
+}
+

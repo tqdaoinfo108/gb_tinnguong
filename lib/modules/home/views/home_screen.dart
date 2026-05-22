@@ -13,6 +13,7 @@ import '../../events/views/event_detail_screen.dart';
 import '../../main/controllers/main_controller.dart';
 import '../../news/controllers/news_controller.dart';
 import '../../news/views/news_detail_screen.dart';
+import '../../account/controllers/account_controller.dart';
 import '../controllers/home_controller.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -121,10 +122,17 @@ class _HeroBlock extends StatelessWidget {
                   fontSize: 28, fontWeight: FontWeight.w700,
                   color: AppColors.onDark, letterSpacing: -0.02, height: 1.15,
                 )),
-                const SizedBox(height: 4),
-                Text('Phường 5 · Quận Bình Thạnh', style: GoogleFonts.inter(
-                  fontSize: 14, color: AppColors.onDarkMuted,
-                )),
+                Obx(() {
+                  String? wu;
+                  try { wu = Get.find<AccountController>().displayWorkUnit; } catch (_) {}
+                  if (wu == null) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(wu, style: GoogleFonts.inter(
+                      fontSize: 14, color: AppColors.onDarkMuted,
+                    )),
+                  );
+                }),
                 const SizedBox(height: 22),
 
                 // KPI mini cards

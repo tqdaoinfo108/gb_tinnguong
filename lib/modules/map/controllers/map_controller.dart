@@ -1,15 +1,20 @@
+import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get/get.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../data/services/map_service.dart';
+import '../../../data/services/overpass_service.dart';
+import '../../account/controllers/account_controller.dart';
 import '../../../data/models/office_model.dart';
 import '../../../data/models/religion_model.dart';
 import '../../../data/models/class_data_model.dart';
 import '../../../data/models/banner_model.dart';
 import '../../../data/models/event_model.dart';
 import '../../../data/models/event_album_model.dart';
+import '../../../data/models/map_layer_model.dart';
 import 'package:flutter_map/flutter_map.dart';
 
 class GisMapController extends GetxController {
@@ -19,6 +24,18 @@ class GisMapController extends GetxController {
   // ── Map center — HCMC default ──
   final initialCenter = const LatLng(10.7769, 106.7009);
   final zoom = 13.0.obs;
+
+  // Centroid tính được từ boundary points — dùng để move camera lần đầu
+  final boundaryCenter = Rxn<LatLng>();
+
+  // ── Map layer settings (persisted) ───────────────────────────────────────────
+  static const _kSettings = 'tinnguong.map.settings';
+  final _secStorage = const FlutterSecureStorage();
+
+  final baseLayer    = MapBaseLayer.administrative.obs;
+  final poiOverlays  = <PoiCategory>{}.obs;   // danh sách overlay đang bật
+  final poiPoints    = <PoiCategory, List<PoiPoint>>{}.obs; // cache kết quả
+  final isPoiLoading = false.obs;
 
   // ── Mount data ──
   final allOffices = <OfficeModel>[].obs;
@@ -37,11 +54,13 @@ class GisMapController extends GetxController {
   final isSearching = false.obs;
 
   // ── Popup state ──
-  final selectedOffice = Rxn<OfficeModel>();
-  final bannerImages = <BannerModel>[].obs;
-  final documents = <BannerModel>[].obs;
-  final events = <EventModel>[].obs;
-  final allAlbums = <EventAlbumModel>[].obs;
+  final selectedOffice  = Rxn<OfficeModel>();
+  final officeLeader    = Rxn<OfficeLeaderModel>();
+  final bannerImages    = <BannerModel>[].obs;
+  final documents       = <BannerModel>[].obs;
+  final activeEvents    = <EventModel>[].obs;   // sự kiện active hiển thị popup
+  final events          = <EventModel>[].obs;   // dùng để load albums
+  final allAlbums       = <EventAlbumModel>[].obs;
   final albumImages = <AlbumImageModel>[].obs;
   final selectedAlbum = Rxn<EventAlbumModel>();
 
@@ -89,27 +108,41 @@ class GisMapController extends GetxController {
     }).toList();
   }
 
-  /// Search results — tìm theo tên hoặc địa chỉ (client-side, dữ liệu đã cache)
+  /// Search results — tìm theo tên, địa chỉ, phường/xã (client-side, đã cache)
   List<OfficeModel> get searchResults {
     final q = searchQuery.value.trim().toLowerCase();
     if (q.isEmpty) return [];
     return allOffices.where((o) {
-      // Must have valid coordinates
       if (o.latitude == null ||
           o.longitude == null ||
           o.latitude == 0 ||
           o.longitude == 0) {
         return false;
       }
-      final name = o.officeName.toLowerCase();
-      final addr = (o.officeAddress ?? '').toLowerCase();
-      final religion = (o.religionName ?? '').toLowerCase();
-      final type = (o.typeOfficeName ?? '').toLowerCase();
-      return name.contains(q) ||
-          addr.contains(q) ||
-          religion.contains(q) ||
-          type.contains(q);
+      final name    = o.officeName.toLowerCase();
+      final addr    = (o.officeAddress  ?? '').toLowerCase();
+      final religion= (o.religionName   ?? '').toLowerCase();
+      final type    = (o.typeOfficeName ?? '').toLowerCase();
+      final village = (o.villageName    ?? '').toLowerCase(); // phường/xã
+      return name.contains(q)    ||
+             addr.contains(q)    ||
+             religion.contains(q)||
+             type.contains(q)    ||
+             village.contains(q);
     }).toList();
+  }
+
+  /// WorkUnit của user hiện tại (từ profile cache) — dùng cho chip gợi ý tìm kiếm.
+  /// Trả null nếu chưa có cache (lần đầu chưa load profile).
+  String? get userWorkUnit {
+    try {
+      // Dùng AccountController nếu đã khởi tạo; không tạo mới nếu chưa có
+      final acCtrl = Get.find<AccountController>();
+      final wu = acCtrl.user.value?.workUnit;
+      return (wu != null && wu.trim().isNotEmpty) ? wu.trim() : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Count markers per religion ID
@@ -126,6 +159,7 @@ class GisMapController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    _loadMapSettings();
     _loadInitialData();
   }
 
@@ -181,6 +215,13 @@ class GisMapController extends GetxController {
         .toList();
     if (coords.length >= 3) {
       boundaryPoints.assignAll(coords);
+
+      // Tính centroid đơn giản (trung bình lat/lng)
+      final avgLat =
+          coords.map((p) => p.latitude).reduce((a, b) => a + b) / coords.length;
+      final avgLng =
+          coords.map((p) => p.longitude).reduce((a, b) => a + b) / coords.length;
+      boundaryCenter.value = LatLng(avgLat, avgLng);
     }
   }
 
@@ -208,6 +249,98 @@ class GisMapController extends GetxController {
       );
     } else {
       mapController.move(initialCenter, 13);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // MAP LAYER SETTINGS
+  // ═══════════════════════════════════════════════════════════════
+
+  Future<void> _loadMapSettings() async {
+    try {
+      final raw = await _secStorage.read(key: _kSettings);
+      if (raw == null) return;
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+
+      // Base layer
+      final idx = (map['baseLayer'] as int?) ?? 0;
+      if (idx >= 0 && idx < MapBaseLayer.values.length) {
+        baseLayer.value = MapBaseLayer.values[idx];
+      }
+
+      // POI overlays — chỉ restore danh sách đã bật;
+      // dữ liệu thực (points) load khi map ready
+      final poiList = (map['poiOverlays'] as List?)?.cast<int>() ?? [];
+      poiOverlays.assignAll(
+        poiList
+            .where((i) => i >= 0 && i < PoiCategory.values.length)
+            .map((i) => PoiCategory.values[i]),
+      );
+    } catch (e) {
+      log('GisMapController._loadMapSettings error: $e');
+    }
+  }
+
+  Future<void> _saveMapSettings() async {
+    try {
+      await _secStorage.write(
+        key: _kSettings,
+        value: jsonEncode({
+          'baseLayer'   : baseLayer.value.index,
+          'poiOverlays' : poiOverlays.map((p) => p.index).toList(),
+        }),
+      );
+    } catch (e) {
+      log('GisMapController._saveMapSettings error: $e');
+    }
+  }
+
+  /// Đổi lớp nền bản đồ và lưu.
+  void setBaseLayer(MapBaseLayer layer) {
+    if (baseLayer.value == layer) return;
+    baseLayer.value = layer;
+    _saveMapSettings();
+  }
+
+  /// Bật/tắt overlay POI và fetch dữ liệu nếu cần.
+  Future<void> togglePoiOverlay(PoiCategory category) async {
+    if (poiOverlays.contains(category)) {
+      poiOverlays.remove(category);
+      poiPoints.remove(category);
+    } else {
+      poiOverlays.add(category);
+      await _fetchPoiForCategory(category);
+    }
+    _saveMapSettings();
+  }
+
+  Future<void> _fetchPoiForCategory(PoiCategory category) async {
+    if (poiPoints.containsKey(category)) return; // already cached
+    isPoiLoading.value = true;
+    try {
+      final bounds = mapController.camera.visibleBounds;
+      // Mở rộng bounds ~20% để lấy POI ngoài rìa viewport
+      final latPad = (bounds.north - bounds.south) * 0.2;
+      final lngPad = (bounds.east  - bounds.west)  * 0.2;
+      final points = await OverpassService.fetchPoi(
+        category: category,
+        south: bounds.south - latPad,
+        west : bounds.west  - lngPad,
+        north: bounds.north + latPad,
+        east : bounds.east  + lngPad,
+      );
+      poiPoints[category] = points;
+    } finally {
+      isPoiLoading.value = false;
+    }
+  }
+
+  /// Gọi sau khi map ready — fetch lại POI đã lưu (viewport đã sẵn sàng).
+  Future<void> onMapReadyFetchPois() async {
+    for (final cat in List.of(poiOverlays)) {
+      if (!poiPoints.containsKey(cat)) {
+        await _fetchPoiForCategory(cat);
+      }
     }
   }
 
@@ -281,10 +414,12 @@ class GisMapController extends GetxController {
 
     // Reset trạng thái cũ
     selectedOffice.value = office;
+    officeLeader.value = null;
     showProfileExpanded.value = false;
     officeDetail.value = null;
     bannerImages.clear();
     documents.clear();
+    activeEvents.clear();
     events.clear();
     allAlbums.clear();
     albumImages.clear();
@@ -303,11 +438,31 @@ class GisMapController extends GetxController {
         _fetchBannerImages(officeID),
         _fetchDocuments(officeID),
         _fetchEventsAndAlbums(officeID),
+        _fetchActiveEvents(officeID),
+        _fetchLeader(officeID),
       ]);
     } catch (e) {
       log('GisMapController._loadPopupData failed: $e');
     } finally {
       isPopupLoading.value = false;
+    }
+  }
+
+  Future<void> _fetchActiveEvents(int officeID) async {
+    try {
+      final list = await _service.getActiveEventsByOffice(officeID);
+      activeEvents.assignAll(list);
+    } catch (e) {
+      activeEvents.clear();
+    }
+  }
+
+  Future<void> _fetchLeader(int officeID) async {
+    try {
+      final leader = await _service.getLeaderByOfficeId(officeID);
+      officeLeader.value = leader;
+    } catch (e) {
+      officeLeader.value = null;
     }
   }
 
@@ -479,10 +634,12 @@ class GisMapController extends GetxController {
   // ═══════════════════════════════════════════════════════════════
   void closePopup() {
     selectedOffice.value = null;
+    officeLeader.value = null;
     showProfileExpanded.value = false;
     officeDetail.value = null;
     bannerImages.clear();
     documents.clear();
+    activeEvents.clear();
     events.clear();
     allAlbums.clear();
     albumImages.clear();

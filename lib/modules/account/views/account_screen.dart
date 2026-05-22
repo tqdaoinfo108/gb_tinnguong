@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/values/app_colors.dart';
 import '../controllers/account_controller.dart';
+import 'profile_edit_screen.dart';
+import 'change_password_screen.dart';
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
@@ -22,13 +24,10 @@ class AccountScreen extends StatelessWidget {
           // ── Hero ──────────────────────────────────────────────
           SliverToBoxAdapter(child: _Hero(ctrl: ctrl, top: top)),
 
-          // ── Stats strip ───────────────────────────────────────
-          SliverToBoxAdapter(child: _StatsStrip(ctrl: ctrl)),
 
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
           // ── Section: Tài khoản ────────────────────────────────
-          SliverToBoxAdapter(child: _SectionLabel('Tài khoản')),
           SliverToBoxAdapter(
             child: _SettingsCard(items: [
               _RowItem(
@@ -38,6 +37,8 @@ class AccountScreen extends StatelessWidget {
                 title: 'Thông tin cá nhân',
                 subtitle: 'Họ tên, mã CB, đơn vị, điện thoại',
                 trailing: _chevron,
+                onTap: () => Get.to(() => const ProfileEditScreen(),
+                    transition: Transition.cupertino),
               ),
               _RowItem(
                 icon: Icons.lock_outline_rounded,
@@ -46,6 +47,8 @@ class AccountScreen extends StatelessWidget {
                 title: 'Bảo mật & đăng nhập',
                 subtitle: 'Đổi mật khẩu · phiên đăng nhập',
                 trailing: _chevron,
+                onTap: () => Get.to(() => const ChangePasswordScreen(),
+                    transition: Transition.cupertino),
               ),
               _RowItem(
                 icon: Icons.bookmark_border_rounded,
@@ -62,7 +65,6 @@ class AccountScreen extends StatelessWidget {
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
           // ── Section: Cài đặt ─────────────────────────────────
-          SliverToBoxAdapter(child: _SectionLabel('Cài đặt')),
           SliverToBoxAdapter(
             child: Obx(() => _SettingsCard(items: [
               _RowItem(
@@ -113,7 +115,6 @@ class AccountScreen extends StatelessWidget {
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
 
           // ── Section: Hỗ trợ ──────────────────────────────────
-          SliverToBoxAdapter(child: _SectionLabel('Hỗ trợ')),
           SliverToBoxAdapter(
             child: _SettingsCard(items: [
               _RowItem(
@@ -166,14 +167,21 @@ class AccountScreen extends StatelessWidget {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    'UBND Phường 5 · Bình Thạnh',
-                    style: GoogleFonts.inter(
-                      fontSize: 11, color: AppColors.inkFaint.withValues(alpha: 0.6),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
+                  Obx(() {
+                    final wu = ctrl.displayWorkUnit;
+                    if (wu == null) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Text(
+                        wu,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: AppColors.inkFaint.withValues(alpha: 0.6),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    );
+                  }),
                 ],
               ),
             ),
@@ -376,7 +384,8 @@ class _Hero extends StatelessWidget {
 
                     // Edit button
                     GestureDetector(
-                      onTap: () {},
+                      onTap: () => Get.to(() => const ProfileEditScreen(),
+                          transition: Transition.cupertino),
                       child: Container(
                         width: 36, height: 36,
                         decoration: BoxDecoration(
@@ -398,85 +407,6 @@ class _Hero extends StatelessWidget {
       ),
     );
   }
-}
-
-// ── Stats strip ───────────────────────────────────────────────────────────────
-
-class _StatsStrip extends StatelessWidget {
-  final AccountController ctrl;
-  const _StatsStrip({required this.ctrl});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF243345),
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: const BoxDecoration(
-          border: Border(
-            top: BorderSide(color: Color(0xFF2E3F52), width: 1),
-          ),
-        ),
-        child: Row(
-          children: [
-            _StatCell(value: '48', label: 'Cơ sở\nphụ trách'),
-            _StatDivider(),
-            _StatCell(value: '12', label: 'Sự kiện\nđã duyệt'),
-            _StatDivider(),
-            _StatCell(value: '2 năm', label: 'Thâm\nniên'),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatCell extends StatelessWidget {
-  final String value;
-  final String label;
-  const _StatCell({required this.value, required this.label});
-
-  @override
-  Widget build(BuildContext context) => Expanded(
-    child: Column(
-      children: [
-        Text(value, style: GoogleFonts.inter(
-          fontSize: 20, fontWeight: FontWeight.w700,
-          color: Colors.white,
-        )),
-        const SizedBox(height: 3),
-        Text(label, style: GoogleFonts.inter(
-          fontSize: 10, color: AppColors.onDarkMuted,
-          height: 1.4,
-        ), textAlign: TextAlign.center),
-      ],
-    ),
-  );
-}
-
-class _StatDivider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 1, height: 36,
-    color: Colors.white.withValues(alpha: 0.1),
-  );
-}
-
-// ── Section label ─────────────────────────────────────────────────────────────
-
-class _SectionLabel extends StatelessWidget {
-  final String label;
-  const _SectionLabel(this.label);
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-    child: Text(label.toUpperCase(), style: GoogleFonts.inter(
-      fontSize: 11, fontWeight: FontWeight.w600,
-      color: AppColors.inkFaint, letterSpacing: 0.8,
-    )),
-  );
 }
 
 // ── Settings card ─────────────────────────────────────────────────────────────

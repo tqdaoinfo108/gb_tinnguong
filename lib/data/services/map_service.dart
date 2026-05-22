@@ -143,6 +143,32 @@ class MapService {
   }
 
   // ─── 2B. Events + Albums ───────────────────────────────────────
+
+  /// Sự kiện đang/sắp hoạt động theo cơ sở — hiển thị trong popup bản đồ
+  Future<List<EventModel>> getActiveEventsByOffice(int officeID) async {
+    try {
+      final res = await _dio.dio.get(
+        '/api/event/get-list-active-by-officeID',
+        queryParameters: {
+          'officeID': officeID,
+          'page': 1,
+          'limit': 20,
+        },
+      );
+      final raw = res.data;
+      if (raw is List) {
+        return raw
+            .whereType<Map<String, dynamic>>()
+            .map(EventModel.fromJson)
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      log('MapService.getActiveEventsByOffice failed: $e');
+      return [];
+    }
+  }
+
   Future<List<EventModel>> getEventList(int officeID) async {
     try {
       final res = await _dio.dio.get(
@@ -215,6 +241,34 @@ class MapService {
     } catch (e) {
       log('MapService.getAlbumImages failed: $e');
       return [];
+    }
+  }
+
+  // ─── 2C. Người lãnh đạo / trụ trì ────────────────────────────
+  Future<OfficeLeaderModel?> getLeaderByOfficeId(int officeID) async {
+    try {
+      final res = await _dio.dio.get(
+        '/api/office-user/get-user-leader-by-officeid',
+        queryParameters: {'oficeID': officeID}, // API typo: "ofice" (1 f)
+      );
+      final raw = res.data;
+      // Phải có OfficeUserID để xác nhận là object hợp lệ
+      if (raw is Map<String, dynamic> &&
+          raw.isNotEmpty &&
+          raw.containsKey('OfficeUserID')) {
+        return OfficeLeaderModel.fromJson(raw);
+      }
+      return null;
+    } on DioException catch (e) {
+      // 404 / 400 = cơ sở chưa có trụ trì → không phải lỗi thật
+      final code = e.response?.statusCode;
+      if (code == 404 || code == 400 || code == 204) return null;
+      // Lỗi thật (5xx, network…) mới ghi log
+      log('MapService.getLeaderByOfficeId error [$code]: ${e.message}');
+      return null;
+    } catch (e) {
+      log('MapService.getLeaderByOfficeId unexpected: $e');
+      return null;
     }
   }
 

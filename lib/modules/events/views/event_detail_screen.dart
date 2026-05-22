@@ -271,10 +271,8 @@ class _FactRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-  final bool emerald;
   const _FactRow({
     required this.icon, required this.label, required this.value,
-    this.emerald = false,
   });
 
   @override
@@ -299,7 +297,7 @@ class _FactRow extends StatelessWidget {
           const SizedBox(height: 2),
           Text(value, style: GoogleFonts.inter(
             fontSize: 15, fontWeight: FontWeight.w600,
-            color: emerald ? AppColors.emeraldFg : AppColors.ink,
+            color: AppColors.ink,
           )),
         ],
       )),
@@ -363,9 +361,6 @@ class _MetaChips extends StatelessWidget {
     }
     if (event.typeEventName != null) {
       chips.add((AppColors.blueBg, AppColors.blueFg, event.typeEventName!));
-    }
-    if (event.isActivity == true) {
-      chips.add((AppColors.emeraldBg, AppColors.emeraldDot, 'Đang hoạt động'));
     }
     if (event.codeActivity != null && event.codeActivity!.isNotEmpty) {
       chips.add((AppColors.parchment2, AppColors.inkMuted, event.codeActivity!));

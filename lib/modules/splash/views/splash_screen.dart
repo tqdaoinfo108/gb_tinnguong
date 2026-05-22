@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:get/get.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/values/app_colors.dart';
+import '../../../data/models/user_model.dart';
 import '../../../routes/app_routes.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -18,6 +20,8 @@ class _SplashScreenState extends State<SplashScreen>
 
   late final AnimationController _fadeCtrl;
   late final AnimationController _dotCtrl;
+
+  String? _workUnit; // cached WorkUnit từ profile, null nếu chưa có
 
   late final Animation<double> _topFade;
   late final Animation<double> _logoFade;
@@ -97,8 +101,24 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 120));
     _fadeCtrl.forward();
 
-    final token = await DioClient().getToken();
-    final next  = token != null ? AppRoutes.main : AppRoutes.login;
+    final client = DioClient();
+    final token  = await client.getToken();
+    final next   = token != null ? AppRoutes.main : AppRoutes.login;
+
+    // Đọc WorkUnit từ cache nếu đã đăng nhập trước đó
+    if (token != null) {
+      try {
+        final raw = await client.getUserJson();
+        if (raw != null && raw.isNotEmpty) {
+          final wu = UserModel.fromJson(
+            jsonDecode(raw) as Map<String, dynamic>,
+          ).workUnit?.trim();
+          if (wu != null && wu.isNotEmpty && mounted) {
+            setState(() => _workUnit = wu);
+          }
+        }
+      } catch (_) {}
+    }
 
     // Wait for animation + minimum hold
     await Future.delayed(const Duration(milliseconds: 2000));
@@ -223,16 +243,17 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                           textAlign: TextAlign.center,
                         ),
-                        Text(
-                          'Phường 5 · Bình Thạnh',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w400,
-                            color: AppColors.inkSoft,
-                            height: 1.5,
+                        if (_workUnit != null)
+                          Text(
+                            _workUnit!,
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                              color: AppColors.inkSoft,
+                              height: 1.5,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
                       ],
                     ),
                   ),
@@ -255,16 +276,17 @@ class _SplashScreenState extends State<SplashScreen>
 
                   const SizedBox(height: 14),
 
-                  Text(
-                    'UBND PHƯỜNG 5',
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.inkFaint,
-                      letterSpacing: 2.0,
+                  if (_workUnit != null)
+                    Text(
+                      _workUnit!.toUpperCase(),
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.inkFaint,
+                        letterSpacing: 2.0,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
                 ],
               ),
             ),

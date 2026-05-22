@@ -83,3 +83,59 @@ class OfficeModel {
     );
   }
 }
+
+// ── Người lãnh đạo / trụ trì của cơ sở ──────────────────────────
+class OfficeLeaderModel {
+  final int officeUserID;
+  final int userID;
+  final String fullName;
+  final String? email;
+  final String? phone;
+  final String? positionName;
+  final String? officeName;
+  final String? villageName;
+  final String? statusName;
+  final DateTime? dateStart;
+  final DateTime? dateEnd;
+
+  const OfficeLeaderModel({
+    required this.officeUserID,
+    required this.userID,
+    required this.fullName,
+    this.email,
+    this.phone,
+    this.positionName,
+    this.officeName,
+    this.villageName,
+    this.statusName,
+    this.dateStart,
+    this.dateEnd,
+  });
+
+  factory OfficeLeaderModel.fromJson(Map<String, dynamic> json) =>
+      OfficeLeaderModel(
+        officeUserID: (json['OfficeUserID'] as num?)?.toInt() ?? 0,
+        userID:       (json['UserID']       as num?)?.toInt() ?? 0,
+        fullName:     json['FullName']   as String? ?? '',
+        email:        json['Email']      as String?,
+        phone:        json['Phone']      as String?,
+        positionName: json['PositionName'] as String?,
+        officeName:   json['OfficeName']   as String?,
+        villageName:  json['VillageName']  as String?,
+        statusName:   json['StatusName']   as String?,
+        dateStart: json['DateStart'] != null
+            ? DateTime.tryParse(json['DateStart'] as String)
+            : null,
+        dateEnd: json['DateEnd'] != null
+            ? DateTime.tryParse(json['DateEnd'] as String)
+            : null,
+      );
+
+  /// Chữ viết tắt 1-2 ký tự để làm avatar
+  String get initials {
+    if (fullName.isEmpty) return '?';
+    final parts = fullName.trim().split(RegExp(r'\s+'));
+    if (parts.length == 1) return parts[0][0].toUpperCase();
+    return (parts.first[0] + parts.last[0]).toUpperCase();
+  }
+}

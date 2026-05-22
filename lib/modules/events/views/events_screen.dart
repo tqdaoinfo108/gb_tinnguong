@@ -61,159 +61,181 @@ class _ListBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.of(context).padding.top;
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
-      slivers: [
-        // ── Header ──
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(20, top + 16, 20, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final bot = MediaQuery.of(context).padding.bottom;
+
+    return Column(
+      children: [
+
+        // ── Cố định: title + search + filters ─────────────────
+        Container(
+          color: AppColors.parchment,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(20, top + 16, 20, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Obx(() => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Sự kiện', style: _hero),
-                      Text('Lễ hội & hoạt động · ${ctrl.total.value} sự kiện', style: _cap),
-                    ])),
-                    _ToggleSegment(showCalendar: false, onToggle: onToggle),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Obx(() => Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Sự kiện', style: _hero),
+                            Text(
+                              'Lễ hội & hoạt động · ${ctrl.total.value} sự kiện',
+                              style: _cap,
+                            ),
+                          ],
+                        )),
+                        _ToggleSegment(showCalendar: false, onToggle: onToggle),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    _SearchBar(ctrl: ctrl),
                   ],
                 ),
-                const SizedBox(height: 14),
-                // Search bar
-                _SearchBar(ctrl: ctrl),
-              ],
-            ),
+              ),
+
+              // Status filter chips
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Obx(() => FilterChipBar(
+                  labels: const ['Tất cả', 'Sắp diễn ra', 'Đang diễn ra', 'Hoàn thành', 'Đã hủy'],
+                  activeIndex: _statusFilterIndex(ctrl.selectedStatusID.value),
+                  onChanged: (i) => ctrl.selectedStatusID.value = _statusIDFromIndex(i),
+                )),
+              ),
+
+              // Permit filter chips
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                child: Obx(() => Row(children: [
+                  TypeChip(
+                    label: 'Tất cả',
+                    active: ctrl.permitFilter.value == 0,
+                    onTap: () => ctrl.permitFilter.value = 0,
+                  ),
+                  const SizedBox(width: 8),
+                  TypeChip(
+                    label: 'Đã cấp phép',
+                    active: ctrl.permitFilter.value == 1,
+                    onTap: () => ctrl.permitFilter.value = 1,
+                  ),
+                  const SizedBox(width: 8),
+                  TypeChip(
+                    label: 'Chưa có phép',
+                    active: ctrl.permitFilter.value == 2,
+                    onTap: () => ctrl.permitFilter.value = 2,
+                  ),
+                ])),
+              ),
+            ],
           ),
         ),
 
-        // ── Status filter chips ──
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Obx(() => FilterChipBar(
-              labels: const ['Tất cả', 'Sắp diễn ra', 'Đang diễn ra', 'Hoàn thành', 'Đã hủy'],
-              activeIndex: _statusFilterIndex(ctrl.selectedStatusID.value),
-              onChanged: (i) => ctrl.selectedStatusID.value = _statusIDFromIndex(i),
-            )),
-          ),
-        ),
+        const Divider(height: 1, color: AppColors.hairline),
 
-        // ── Permit filter ──
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-            child: Obx(() => Row(children: [
-              TypeChip(
-                label: 'Tất cả',
-                active: ctrl.permitFilter.value == 0,
-                onTap: () => ctrl.permitFilter.value = 0,
-              ),
-              const SizedBox(width: 8),
-              TypeChip(
-                label: 'Đã cấp phép',
-                active: ctrl.permitFilter.value == 1,
-                onTap: () => ctrl.permitFilter.value = 1,
-              ),
-              const SizedBox(width: 8),
-              TypeChip(
-                label: 'Chưa có phép',
-                active: ctrl.permitFilter.value == 2,
-                onTap: () => ctrl.permitFilter.value = 2,
-              ),
-            ])),
-          ),
-        ),
+        // ── Scrollable: alert + KPI + cards ───────────────────
+        Expanded(
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
 
-        // ── Alert banner ──
-        Obx(() {
-          final alerts = ctrl.alertEvents;
-          if (alerts.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
-          return SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-              child: _AlertBanner(events: alerts),
-            ),
-          );
-        }),
+              // Alert banner
+              Obx(() {
+                final alerts = ctrl.alertEvents;
+                if (alerts.isEmpty) {
+                  return const SliverToBoxAdapter(child: SizedBox.shrink());
+                }
+                return SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                    child: _AlertBanner(events: alerts),
+                  ),
+                );
+              }),
 
-        // ── KPI strip ──
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-            child: Obx(() => Row(children: [
-              _KpiTile(label: 'Tổng', value: '${ctrl.total.value}'),
-              const SizedBox(width: 8),
-              _KpiTile(label: 'Sắp tới', value: '${ctrl.countUpcoming}'),
-              const SizedBox(width: 8),
-              _KpiTile(label: 'Đã phép', value: '${ctrl.countPermit}', tone: PillKind.emerald),
-              const SizedBox(width: 8),
-              _KpiTile(label: 'Chưa phép', value: '${ctrl.countNoPermit}', tone: PillKind.amber),
-            ])),
-          ),
-        ),
-
-        // ── Event cards ──
-        Obx(() {
-          final list = ctrl.filteredEvents;
-          if (list.isEmpty && !ctrl.isLoading.value) {
-            return SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 60),
-                child: Center(child: Text('Không có sự kiện', style: _cap)),
+              // KPI strip
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                  child: Obx(() => Row(children: [
+                    _KpiTile(label: 'Tổng', value: '${ctrl.total.value}'),
+                    const SizedBox(width: 8),
+                    _KpiTile(label: 'Sắp tới', value: '${ctrl.countUpcoming}'),
+                    const SizedBox(width: 8),
+                    _KpiTile(label: 'Đã phép', value: '${ctrl.countPermit}', tone: PillKind.emerald),
+                    const SizedBox(width: 8),
+                    _KpiTile(label: 'Chưa phép', value: '${ctrl.countNoPermit}', tone: PillKind.amber),
+                  ])),
+                ),
               ),
-            );
-          }
-          return SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, i) {
-                  if (i.isOdd) return const SizedBox(height: 12);
-                  final event = list[i ~/ 2];
-                  return GestureDetector(
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => EventDetailScreen(event: event),
-                      ),
-                    ),
-                    child: _EventCard(
-                      event: event,
-                      onEdit: () => _openForm(context, ctrl, event),
-                      onDelete: () => ctrl.deleteEvent(event),
+
+              // Event cards
+              Obx(() {
+                final list = ctrl.filteredEvents;
+                if (list.isEmpty && !ctrl.isLoading.value) {
+                  return SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 60),
+                      child: Center(child: Text('Không có sự kiện', style: _cap)),
                     ),
                   );
-                },
-                childCount: list.length * 2 - 1,
-              ),
-            ),
-          );
-        }),
-
-        // ── Load more ──
-        Obx(() => ctrl.hasMore.value
-            ? SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  child: OutlinedButton(
-                    onPressed: ctrl.loadMore,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                }
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, i) {
+                        if (i.isOdd) return const SizedBox(height: 12);
+                        final event = list[i ~/ 2];
+                        return GestureDetector(
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => EventDetailScreen(event: event),
+                            ),
+                          ),
+                          child: _EventCard(event: event),
+                        );
+                      },
+                      childCount: list.length * 2 - 1,
                     ),
-                    child: ctrl.isLoading.value
-                        ? const SizedBox(height: 20, width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))
-                        : Text('Xem thêm', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                   ),
-                ),
-              )
-            : const SliverToBoxAdapter(child: SizedBox.shrink())),
+                );
+              }),
 
-        const SliverToBoxAdapter(child: SizedBox(height: 100)),
+              // Load more
+              Obx(() => ctrl.hasMore.value
+                  ? SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                        child: OutlinedButton(
+                          onPressed: ctrl.loadMore,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: const BorderSide(color: AppColors.primary),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: ctrl.isLoading.value
+                              ? const SizedBox(
+                                  height: 20, width: 20,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: AppColors.primary))
+                              : Text('Xem thêm',
+                                  style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                    )
+                  : const SliverToBoxAdapter(child: SizedBox.shrink())),
+
+              SliverToBoxAdapter(child: SizedBox(height: bot + 100)),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -376,11 +398,12 @@ class _SearchBar extends StatelessWidget {
             onChanged: (v) => ctrl.searchKey.value = v,
           ),
         ),
-        if (ctrl.searchKey.value.isNotEmpty)
-          GestureDetector(
-            onTap: () => ctrl.searchKey.value = '',
-            child: const Icon(Icons.close_rounded, size: 18, color: AppColors.inkFaint),
-          ),
+        Obx(() => ctrl.searchKey.value.isNotEmpty
+            ? GestureDetector(
+                onTap: () => ctrl.searchKey.value = '',
+                child: const Icon(Icons.close_rounded, size: 18, color: AppColors.inkFaint),
+              )
+            : const SizedBox.shrink()),
       ]),
     );
   }
@@ -482,9 +505,7 @@ class _KpiTile extends StatelessWidget {
 // ─── Event card ────────────────────────────────────────────────
 class _EventCard extends StatelessWidget {
   final EventModel event;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-  const _EventCard({required this.event, required this.onEdit, required this.onDelete});
+  const _EventCard({required this.event});
 
   @override
   Widget build(BuildContext context) {
@@ -566,11 +587,6 @@ class _EventCard extends StatelessWidget {
                               fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.inkSoft,
                             ),
                           )),
-                          // Long-press actions
-                          GestureDetector(
-                            onTap: () => _showActions(context),
-                            child: const Icon(Icons.more_horiz_rounded, size: 18, color: AppColors.inkFaint),
-                          ),
                         ]),
                         const SizedBox(height: 4),
                         Text(event.eventName,
@@ -625,34 +641,6 @@ class _EventCard extends StatelessWidget {
     );
   }
 
-  void _showActions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => SafeArea(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const SizedBox(height: 8),
-          Container(width: 36, height: 4,
-              decoration: BoxDecoration(color: AppColors.hairlineStrong,
-                  borderRadius: BorderRadius.circular(999))),
-          const SizedBox(height: 12),
-          ListTile(
-            leading: const Icon(Icons.edit_outlined, color: AppColors.inkMuted),
-            title: const Text('Chỉnh sửa'),
-            onTap: () { Get.back(); onEdit(); },
-          ),
-          ListTile(
-            leading: const Icon(Icons.delete_outline_rounded, color: AppColors.redFg),
-            title: Text('Xóa sự kiện', style: TextStyle(color: AppColors.redFg)),
-            onTap: () { Get.back(); onDelete(); },
-          ),
-          const SizedBox(height: 8),
-        ]),
-      ),
-    );
-  }
 }
 
 // ─── Permit badge ──────────────────────────────────────────────
@@ -1000,9 +988,17 @@ class _EventFormSheet extends StatelessWidget {
                     Obx(() => Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Đang hoạt động', style: GoogleFonts.inter(
-                          fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.ink,
-                        )),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Đã cấp phép', style: GoogleFonts.inter(
+                              fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.ink,
+                            )),
+                            Text('Giấy phép hoạt động tôn giáo', style: GoogleFonts.inter(
+                              fontSize: 11, color: AppColors.inkFaint,
+                            )),
+                          ],
+                        ),
                         Switch.adaptive(
                           value: ctrl.formIsActivity.value,
                           activeThumbColor: AppColors.primary,

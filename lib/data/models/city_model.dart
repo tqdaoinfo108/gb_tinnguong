@@ -37,8 +37,20 @@ class CityPointModel {
     double? lat;
     double? lng;
 
-    // Parse WKT: "POINT (lng lat)" — lng trước, lat sau
-    final wkt = json['WellKnownText'] as String?;
+    // API trả về: LocationGis.Geography.WellKnownText = "POINT (lng lat)"
+    // Thử lấy từ nested path trước, fallback top-level nếu có
+    String? wkt = json['WellKnownText'] as String?;
+    if (wkt == null) {
+      final locationGis = json['LocationGis'];
+      if (locationGis is Map<String, dynamic>) {
+        final geography = locationGis['Geography'];
+        if (geography is Map<String, dynamic>) {
+          wkt = geography['WellKnownText'] as String?;
+        }
+      }
+    }
+
+    // Parse WKT: "POINT (lng lat)" — kinh độ trước, vĩ độ sau
     if (wkt != null) {
       final m = RegExp(r'POINT\s*\(\s*([\d.+\-]+)\s+([\d.+\-]+)\s*\)')
           .firstMatch(wkt);
@@ -48,7 +60,7 @@ class CityPointModel {
       }
     }
 
-    // Fallback to explicit fields if WKT not available
+    // Fallback: field tường minh
     lat ??= (json['Latitude'] as num?)?.toDouble();
     lng ??= (json['Longitude'] as num?)?.toDouble();
 

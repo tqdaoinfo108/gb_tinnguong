@@ -9,11 +9,10 @@ class EventModel {
   final DateTime? dateStart;
   final DateTime? dateEnd;
   final int? personJoin;
-  final bool? isActivity;
+  final bool? hasPermit;       // từ API field IsActivity
   final String? codeActivity;
   final int? statusID;
   final String? statusName;
-  final bool? hasPermit;
   final String? permitNo;
   final String? villageName;
   final String? description;
@@ -29,11 +28,10 @@ class EventModel {
     this.dateStart,
     this.dateEnd,
     this.personJoin,
-    this.isActivity,
+    this.hasPermit,
     this.codeActivity,
     this.statusID,
     this.statusName,
-    this.hasPermit,
     this.permitNo,
     this.villageName,
     this.description,
@@ -50,11 +48,10 @@ class EventModel {
         dateStart: json['DateStart'] != null ? DateTime.tryParse(json['DateStart'].toString()) : null,
         dateEnd: json['DateEnd'] != null ? DateTime.tryParse(json['DateEnd'].toString()) : null,
         personJoin: (json['PersonJoin'] as num?)?.toInt(),
-        isActivity: json['IsActivity'] as bool?,
+        hasPermit: json['IsActivity'] as bool?,
         codeActivity: json['CodeActivity'] as String?,
         statusID: (json['StatusID'] as num?)?.toInt(),
         statusName: json['StatusName'] as String?,
-        hasPermit: json['HasPermit'] as bool?,
         permitNo: json['PermitNo'] as String?,
         villageName: json['VillageName'] as String?,
         description: json['Description'] as String?,

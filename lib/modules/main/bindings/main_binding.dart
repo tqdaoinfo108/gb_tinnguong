@@ -15,7 +15,8 @@ class MainBinding extends Bindings {
     Get.lazyPut(() => GisMapController());
     Get.lazyPut(() => EventsController());
     Get.lazyPut(() => NewsController());
-    Get.lazyPut(() => NotificationsController());
+    // Get.put (không lazy) để badge load ngay khi app mở
+    Get.put(NotificationsController());
     Get.lazyPut(() => AccountController());
   }
 }

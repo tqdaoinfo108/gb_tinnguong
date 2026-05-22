@@ -58,8 +58,8 @@ class AppColors {
   static const Color goldPillBg = Color(0xFFFAF0D6);
   static const Color goldPillFg = Color(0xFF6E5512);
 
-  // Map background
-  static const Color mapBg = Color(0xFFE8E3D3);
+  // Map background — warm cream, khớp với CartoDB Positron sau khi áp ColorFilter
+  static const Color mapBg = Color(0xFFEAE6DC);
 
   // Religion palette
   static const Color buddhism  = Color(0xFFC9A84C);

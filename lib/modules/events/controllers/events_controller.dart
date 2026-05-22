@@ -203,7 +203,7 @@ class EventsController extends GetxController {
     formOfficeID.value    = e?.officeID;
     formVillageID.value   = null;
     formStatusID.value    = e?.statusID ?? 1;
-    formIsActivity.value  = e?.isActivity ?? true;
+    formIsActivity.value  = e?.hasPermit ?? true;
   }
 
   String _fmtDate(DateTime? d) => d == null
